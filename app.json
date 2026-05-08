@@ -1,0 +1,50 @@
+{
+  "expo": {
+    "name": "Baby Studio",
+    "slug": "baby-studio",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "babystudio",
+    "platforms": [
+      "ios",
+      "android",
+      "web"
+    ],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Baby Studio uses your photo library so you can choose a baby picture to style.",
+          "cameraPermission": "Baby Studio uses the camera when you take a new photo in the app."
+        }
+      ],
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "생성된 사진을 휴대폰 사진함에 저장하기 위해 권한이 필요합니다.",
+          "savePhotosPermission": "생성된 사진을 휴대폰 사진함에 저장하기 위해 권한이 필요합니다."
+        }
+      ]
+    ],
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.anonymous.babystudio"
+    },
+    "android": {
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.READ_MEDIA_VISUAL_USER_SELECTED",
+        "android.permission.READ_MEDIA_VIDEO",
+        "android.permission.READ_MEDIA_AUDIO"
+      ],
+      "package": "com.anonymous.babystudio"
+    }
+  }
+}
