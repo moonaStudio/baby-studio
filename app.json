@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Baby Studio",
+    "name": "Moona Studio",
     "slug": "baby-studio",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -17,8 +17,8 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Baby Studio uses your photo library so you can choose a baby picture to style.",
-          "cameraPermission": "Baby Studio uses the camera when you take a new photo in the app."
+          "photosPermission": "Moona Studio uses your photo library so you can choose a picture to style.",
+          "cameraPermission": "Moona Studio uses the camera when you take a new photo in the app."
         }
       ],
       [

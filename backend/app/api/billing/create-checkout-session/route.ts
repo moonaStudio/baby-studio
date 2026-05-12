@@ -46,7 +46,7 @@ export async function POST(req: Request) {
             currency: "usd",
             unit_amount: pack.unitAmount,
             product_data: {
-              name: "Baby Studio photo credits",
+              name: "Moona Studio photo credits",
               description: `${pack.credits} photo credit(s)`
             }
           }

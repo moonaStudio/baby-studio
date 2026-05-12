@@ -61,7 +61,7 @@ export function HomeScreen({ navigation }: any) {
           variant="titleLarge"
           style={{ color: "#4C113F", fontWeight: "800", fontFamily: "System" }}
         >
-          베이비 스튜디오
+          Moona Studio
         </Text>
         <IconButton
           icon="account-circle-outline"

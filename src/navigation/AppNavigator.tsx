@@ -1,5 +1,10 @@
 import React from "react";
-import { NavigationContainer } from "@react-navigation/native";
+import { ActivityIndicator, View } from "react-native";
+import {
+  CommonActions,
+  NavigationContainer,
+  createNavigationContainerRef
+} from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -26,6 +31,14 @@ import { useAppStore } from "../store";
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
+
+export const navigationRef = createNavigationContainerRef();
+
+function resetTo(name: "Login" | "MainTabs") {
+  if (navigationRef.isReady()) {
+    navigationRef.dispatch(CommonActions.reset({ index: 0, routes: [{ name }] }));
+  }
+}
 
 function MainTabs() {
   return (
@@ -120,6 +133,8 @@ function MainTabs() {
 export function AppNavigator() {
   const setUserId = useAppStore((s) => s.setUserId);
   const setPhotoCredits = useAppStore((s) => s.setPhotoCredits);
+  const [authBootstrapped, setAuthBootstrapped] = React.useState(false);
+  const [initialRouteName, setInitialRouteName] = React.useState<"Login" | "MainTabs">("Login");
 
   const syncCredits = React.useCallback(async () => {
     try {
@@ -133,29 +148,62 @@ export function AppNavigator() {
   }, [setPhotoCredits]);
 
   React.useEffect(() => {
+    let cancelled = false;
+
     getCurrentUserId()
       .then((id) => {
+        if (cancelled) return;
         setUserId(id);
+        if (CONFIG.SKIP_AUTH_FOR_DEV) {
+          setInitialRouteName("MainTabs");
+        } else {
+          setInitialRouteName(id ? "MainTabs" : "Login");
+        }
         if (id && !CONFIG.SKIP_AUTH_FOR_DEV) {
           void syncCredits();
         }
       })
-      .catch(() => setUserId(undefined));
+      .catch(() => {
+        if (!cancelled) {
+          setUserId(undefined);
+          setInitialRouteName(CONFIG.SKIP_AUTH_FOR_DEV ? "MainTabs" : "Login");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setAuthBootstrapped(true);
+        }
+      });
 
-    const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data } = supabase.auth.onAuthStateChange((event, session) => {
       if (CONFIG.SKIP_AUTH_FOR_DEV) {
+        return;
+      }
+      if (event === "TOKEN_REFRESHED" || event === "USER_UPDATED") {
+        if (session?.user?.id) {
+          setUserId(session.user.id);
+        }
         return;
       }
       if (session?.user?.id) {
         setUserId(session.user.id);
         void syncCredits();
+        if (event === "SIGNED_IN") {
+          resetTo("MainTabs");
+        }
       } else {
         setUserId(undefined);
         setPhotoCredits(0);
+        if (event === "SIGNED_OUT") {
+          resetTo("Login");
+        }
       }
     });
 
-    return () => data.subscription.unsubscribe();
+    return () => {
+      cancelled = true;
+      data.subscription.unsubscribe();
+    };
   }, [setUserId, setPhotoCredits, syncCredits]);
 
   React.useEffect(() => {
@@ -171,16 +219,20 @@ export function AppNavigator() {
     return () => sub.remove();
   }, [syncCredits]);
 
+  if (!authBootstrapped) {
+    return (
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+        <ActivityIndicator size="large" />
+      </View>
+    );
+  }
+
   return (
-    <NavigationContainer>
-      <Stack.Navigator initialRouteName="MainTabs">
-        <Stack.Screen
-          name="MainTabs"
-          component={MainTabs}
-          options={{ headerShown: false }}
-        />
-        <Stack.Screen name="Login" component={LoginScreen} />
+    <NavigationContainer ref={navigationRef}>
+      <Stack.Navigator initialRouteName={initialRouteName}>
+        <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
         <Stack.Screen name="Signup" component={SignupScreen} />
+        <Stack.Screen name="MainTabs" component={MainTabs} options={{ headerShown: false }} />
       </Stack.Navigator>
     </NavigationContainer>
   );

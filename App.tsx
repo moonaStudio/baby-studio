@@ -1,3 +1,5 @@
+import "react-native-get-random-values";
+import "./src/polyfills/pkceWebCrypto";
 import React from "react";
 import { useFonts } from "expo-font";
 import { Text, TextInput, View } from "react-native";

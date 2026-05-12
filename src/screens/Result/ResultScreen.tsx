@@ -48,7 +48,7 @@ export function ResultScreen({ navigation }: any) {
         onPress={async () => {
           if (!resultImageUri) return;
           if (Platform.OS === "web") {
-            triggerWebDownload(resultImageUri, `baby-studio-share-${Date.now()}.jpg`);
+            triggerWebDownload(resultImageUri, `moona-studio-share-${Date.now()}.jpg`);
             return;
           }
           setBusy("share");

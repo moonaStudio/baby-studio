@@ -132,10 +132,6 @@ const FACE_SLOT_TUNING: Partial<
     faceSlot: { x: 0.5, y: 0.46, width: 0.17, height: 0.22, feather: 0.1 },
     colorProfile: "neutral"
   },
-  "100-days-gold": {
-    faceSlot: { x: 0.5, y: 0.46, width: 0.19, height: 0.24, feather: 0.12 },
-    colorProfile: "warm"
-  },
   "horse-plush-newborn": {
     faceSlot: { x: 0.5, y: 0.39, width: 0.2, height: 0.24, feather: 0.08 },
     colorProfile: "warm"
@@ -202,14 +198,10 @@ function resolveBackgroundFileCandidates(slug: string): string[] {
   if (slug === "horse-plush-newborn" || slug === "newborn-horse") return ["newborn-horse.png"];
   if (slug === "100-days-teddy-bears") return ["100-days-teddy-bears.png"];
   if (slug === "100-days-ice-cream") return ["100-days-ice-cream.png"];
-  if (slug === "100-days-gold") return ["100-days-gold.png", "100-days-teddy-bears.png"];
   return [`${slug}.png`, `${slug}.jpg`];
 }
 
 function tuningKeyForResolvedFile(slug: string, backgroundFile: string): string {
-  if (slug === "100-days-gold" && backgroundFile === "100-days-teddy-bears.png") {
-    return "100-days-teddy-bears";
-  }
   return slug;
 }
 

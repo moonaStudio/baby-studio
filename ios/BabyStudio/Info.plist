@@ -7,7 +7,7 @@
     <key>CFBundleDevelopmentRegion</key>
     <string>$(DEVELOPMENT_LANGUAGE)</string>
     <key>CFBundleDisplayName</key>
-    <string>Baby Studio</string>
+    <string>Moona Studio</string>
     <key>CFBundleExecutable</key>
     <string>$(EXECUTABLE_NAME)</string>
     <key>CFBundleIdentifier</key>
@@ -46,13 +46,13 @@
       <true/>
     </dict>
     <key>NSCameraUsageDescription</key>
-    <string>Baby Studio uses the camera when you take a new photo in the app.</string>
+    <string>Moona Studio uses the camera when you take a new photo in the app.</string>
     <key>NSMicrophoneUsageDescription</key>
     <string>Allow $(PRODUCT_NAME) to access your microphone</string>
     <key>NSPhotoLibraryAddUsageDescription</key>
     <string>생성된 사진을 휴대폰 사진함에 저장하기 위해 권한이 필요합니다.</string>
     <key>NSPhotoLibraryUsageDescription</key>
-    <string>Baby Studio uses your photo library so you can choose a baby picture to style.</string>
+    <string>Moona Studio uses your photo library so you can choose a picture to style.</string>
     <key>RCTNewArchEnabled</key>
     <true/>
     <key>UILaunchStoryboardName</key>

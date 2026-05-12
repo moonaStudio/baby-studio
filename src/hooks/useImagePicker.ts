@@ -15,7 +15,7 @@ export function useImagePicker() {
     if (!granted) {
       Alert.alert(
         "Photo library access",
-        "Allow Photos access for Baby Studio in Settings to pick from your gallery.",
+        "Allow Photos access for Moona Studio in Settings to pick from your gallery.",
         [
           { text: "Not now", style: "cancel" },
           { text: "Open Settings", onPress: () => Linking.openSettings() }

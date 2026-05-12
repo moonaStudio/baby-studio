@@ -27,13 +27,13 @@ export async function ensureLocalFileFromImageUri(imageUri: string): Promise<str
   const header = imageUri.slice(0, comma).toLowerCase();
   const body = imageUri.slice(comma + 1).replace(/\s/g, "");
   const ext = header.includes("png") ? "png" : "jpg";
-  const path = `${base}baby-studio-share-${Date.now()}.${ext}`;
+  const path = `${base}moona-studio-share-${Date.now()}.${ext}`;
 
   await writeAsStringAsync(path, body, { encoding: EncodingType.Base64 });
   return path;
 }
 
-export function triggerWebDownload(imageUri: string, filename = "baby-studio.jpg") {
+export function triggerWebDownload(imageUri: string, filename = "moona-studio.jpg") {
   if (Platform.OS !== "web") return;
   const a = document.createElement("a");
   a.href = imageUri;
@@ -65,7 +65,7 @@ export async function saveImageUriToDeviceLibrary(imageUri: string): Promise<voi
 
 export async function shareImageUri(imageUri: string): Promise<void> {
   if (Platform.OS === "web") {
-    triggerWebDownload(imageUri, `baby-studio-${Date.now()}.jpg`);
+    triggerWebDownload(imageUri, `moona-studio-${Date.now()}.jpg`);
     return;
   }
   const fileUri = await ensureLocalFileFromImageUri(imageUri);
@@ -75,6 +75,6 @@ export async function shareImageUri(imageUri: string): Promise<void> {
   }
   await Sharing.shareAsync(fileUri, {
     mimeType: fileUri.endsWith(".png") ? "image/png" : "image/jpeg",
-    dialogTitle: "Baby Studio"
+    dialogTitle: "Moona Studio"
   });
 }

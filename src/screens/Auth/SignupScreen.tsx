@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { View } from "react-native";
 import { Button, Text, TextInput } from "react-native-paper";
-import { signUpLocal, signUpWithEmail } from "../../services/supabase";
+import { signUpWithEmail } from "../../services/supabase";
 import { useAppStore } from "../../store";
 
 export function SignupScreen({ navigation }: any) {
@@ -13,7 +13,7 @@ export function SignupScreen({ navigation }: any) {
 
   return (
     <View style={{ flex: 1, justifyContent: "center", padding: 20, gap: 12 }}>
-      <Text variant="headlineSmall">베이비 스튜디오 계정 만들기</Text>
+      <Text variant="headlineSmall">Moona Studio 계정 만들기</Text>
       <TextInput label="Email" value={email} onChangeText={setEmail} />
       <TextInput
         label="Password"
@@ -31,7 +31,7 @@ export function SignupScreen({ navigation }: any) {
           try {
             const result = await signUpWithEmail(email.trim(), password);
             setUserId(result.user?.id);
-            navigation.goBack();
+            navigation.reset({ index: 0, routes: [{ name: "MainTabs" }] });
           } catch (e: any) {
             setError(e?.message ?? "회원가입에 실패했어요.");
           } finally {
@@ -40,26 +40,6 @@ export function SignupScreen({ navigation }: any) {
         }}
       >
         회원가입
-      </Button>
-      <Button
-        mode="outlined"
-        loading={loading}
-        disabled={loading}
-        onPress={async () => {
-          setLoading(true);
-          setError(undefined);
-          try {
-            const result = await signUpLocal(email.trim(), password);
-            setUserId(result.user?.id);
-            navigation.goBack();
-          } catch (e: any) {
-            setError(e?.message ?? "간편 회원가입에 실패했어요.");
-          } finally {
-            setLoading(false);
-          }
-        }}
-      >
-        API 없이 간편 회원가입
       </Button>
       {error ? <Text>{error}</Text> : null}
     </View>

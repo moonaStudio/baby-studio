@@ -1,6 +1,7 @@
 import React from "react";
 import { View } from "react-native";
 import { Button, Card, Text, TextInput } from "react-native-paper";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import {
   getCurrentUserEmail,
   sendPasswordReset,
@@ -86,6 +87,9 @@ export function SettingsScreen({ navigation }: any) {
               <Button
                 mode="outlined"
                 style={BUTTON_STYLE}
+                icon={({ size }) => (
+                  <MaterialCommunityIcons name="google" size={size + 4} color="#4285F4" />
+                )}
                 onPress={async () => {
                   try {
                     const result = await signInWithOAuth("google");
@@ -95,21 +99,7 @@ export function SettingsScreen({ navigation }: any) {
                   }
                 }}
               >
-                Google로 로그인
-              </Button>
-              <Button
-                mode="outlined"
-                style={BUTTON_STYLE}
-                onPress={async () => {
-                  try {
-                    const result = await signInWithOAuth("apple");
-                    setUserId(result?.session?.user?.id);
-                  } catch (e: any) {
-                    setMessage(e?.message ?? "Apple 로그인 실패");
-                  }
-                }}
-              >
-                Apple로 로그인
+                Google로 계속하기
               </Button>
             </View>
           )}

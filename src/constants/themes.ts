@@ -169,7 +169,6 @@ export const THEME_TEMPLATES: Template[] = [
     gender: "boy",
     previewImage: FirstBirthdayBoyPreview
   }),
-  makeTemplate("100일 골드", "100-days-gold", true, "warm", "100day"),
   makeTemplate("100일 아이스크림", "100-days-ice-cream", true, "cool", "100day", {
     gender: "unisex",
     previewImage: IceCream100dayPreview
