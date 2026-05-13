@@ -14,8 +14,6 @@ export const CONFIG = {
   SUPABASE_URL: process.env.EXPO_PUBLIC_SUPABASE_URL ?? "",
   SUPABASE_ANON_KEY: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? "",
   BACKEND_URL: process.env.EXPO_PUBLIC_BACKEND_URL ?? "",
-  /** Path on BACKEND_URL used as Supabase OAuth redirect (HTTPS); add full URL to Supabase Redirect URLs. */
-  OAUTH_BRIDGE_PATH: "/oauth-bridge",
   REVENUECAT_API_KEY: process.env.EXPO_PUBLIC_REVENUECAT_API_KEY ?? "",
   FREE_THEME_LIMIT: 2,
   FREE_MONTHLY_LIMIT: 5,

@@ -10,7 +10,9 @@ function digestSha256(data: BufferSource): Promise<ArrayBuffer> {
     data instanceof ArrayBuffer
       ? new Uint8Array(data)
       : new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
-  return Promise.resolve(sha256(view).buffer as ArrayBuffer);
+  const hash = sha256(view);
+  // `.buffer` alone can be a larger pooled ArrayBuffer; slice() pins exactly 32 bytes for SHA-256.
+  return Promise.resolve(hash.slice().buffer);
 }
 
 function algorithmName(algorithm: AlgorithmIdentifier): string {

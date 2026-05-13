@@ -12,6 +12,14 @@ const APP_SCHEME = "babystudio";
 /** Must match a row in Supabase → Auth → URL Configuration → Redirect URLs (exact or wildcard). */
 const NATIVE_CUSTOM_SCHEME_REDIRECT = `${APP_SCHEME}://auth/callback`;
 
+async function resetOauthInAppBrowserState(): Promise<void> {
+  try {
+    WebBrowser.dismissAuthSession();
+  } catch {
+    // not available on all platforms
+  }
+}
+
 /** Web has no AsyncStorage native module; Supabase auth + local keys use localStorage on web. */
 function createPersistStorage() {
   if (Platform.OS !== "web") {
@@ -48,10 +56,13 @@ const persistStorage = createPersistStorage();
 
 /**
  * Supabase only redirects here if this string matches the allow list; otherwise it sends the user
- * to Site URL (your Vercel root — "Baby Studio Backend").
+ * to Site URL (e.g. Vercel root).
  *
- * For native apps, prefer HTTPS on your deployed backend so GoTrue always accepts the same URL as
- * Site URL / allow list (avoids exp:// glob edge cases). The in-app browser receives ?code= here.
+ * Do NOT use https://… as redirectTo with WebBrowser.openAuthSessionAsync on iOS: without
+ * Associated Domains + preferUniversalLinks, ASWebAuthenticationSession uses scheme "https" and
+ * often never completes — the sheet stays open forever.
+ *
+ * Expo Go: exp://… (add exp://** in Supabase). Dev / release: babystudio://auth/callback.
  */
 function isExpoGo(): boolean {
   return (
@@ -60,19 +71,9 @@ function isExpoGo(): boolean {
   );
 }
 
-function getHttpsOAuthBridgeUrl(): string | null {
-  const base = CONFIG.BACKEND_URL?.replace(/\/$/, "").trim();
-  if (!base.startsWith("https://")) return null;
-  return `${base}${CONFIG.OAUTH_BRIDGE_PATH}`;
-}
-
 function getOAuthRedirectTo(): string {
   if (Platform.OS === "web") {
     return makeRedirectUri({ path: "auth/callback" });
-  }
-  const bridge = getHttpsOAuthBridgeUrl();
-  if (bridge) {
-    return bridge;
   }
   if (isExpoGo()) {
     return Linking.createURL("auth/callback");
@@ -80,15 +81,48 @@ function getOAuthRedirectTo(): string {
   return NATIVE_CUSTOM_SCHEME_REDIRECT;
 }
 
+/**
+ * Parse PKCE `code` from the OAuth return URL. Prefer WHATWG URL (handles exp://…).
+ * Strip trailing `#` / `%23` — iOS can append a spurious fragment to the code param
+ * when custom-scheme redirects are malformed (see supabase/auth#2423).
+ */
 function extractPkceCodeFromCallbackUrl(url: string): string | undefined {
+  const stripCodeNoise = (raw: string) =>
+    raw
+      .trim()
+      .replace(/#+$/g, "")
+      .replace(/%23$/gi, "")
+      .trim();
+
+  try {
+    const u = new URL(url);
+    const fromQuery = u.searchParams.get("code");
+    if (fromQuery) {
+      const c = stripCodeNoise(fromQuery);
+      if (c) return c;
+    }
+    if (u.hash && u.hash.length > 1) {
+      const hashParams = new URLSearchParams(u.hash.slice(1));
+      const fromHash = hashParams.get("code");
+      if (fromHash) {
+        const c = stripCodeNoise(fromHash);
+        if (c) return c;
+      }
+    }
+  } catch {
+    // non-URL or exotic scheme — fall back below
+  }
+
   const query = url.match(/[?&]code=([^&]+)/);
   if (query?.[1]) {
-    return decodeURIComponent(query[1]);
+    const c = stripCodeNoise(decodeURIComponent(query[1]));
+    if (c) return c;
   }
   const hash = url.includes("#") ? url.slice(url.indexOf("#") + 1) : "";
   const inHash = hash.match(/(?:^|[&])code=([^&]+)/);
   if (inHash?.[1]) {
-    return decodeURIComponent(inHash[1]);
+    const c = stripCodeNoise(decodeURIComponent(inHash[1]));
+    if (c) return c;
   }
   return undefined;
 }
@@ -116,7 +150,28 @@ export async function signInWithEmail(email: string, password: string) {
   return data;
 }
 
+/** Second OAuth start overwrites PKCE verifier in storage and breaks exchange. */
+let oauthSignInInFlight = false;
+
 export async function signInWithOAuth(provider: OAuthProvider) {
+  if (oauthSignInInFlight) {
+    throw new Error(
+      "로그인 요청이 이미 진행 중이에요. 브라우저 창을 닫거나 완료한 뒤 다시 눌러 주세요."
+    );
+  }
+  oauthSignInInFlight = true;
+  try {
+    return await signInWithOAuthInner(provider);
+  } finally {
+    oauthSignInInFlight = false;
+  }
+}
+
+async function signInWithOAuthInner(provider: OAuthProvider) {
+  if (Platform.OS !== "web") {
+    await resetOauthInAppBrowserState();
+  }
+
   const redirectTo = getOAuthRedirectTo();
   if (__DEV__) {
     console.warn(
@@ -128,9 +183,7 @@ export async function signInWithOAuth(provider: OAuthProvider) {
     provider,
     options: {
       redirectTo,
-      skipBrowserRedirect: true,
-      // GoTrue는 이 플래그로 브라우저 302 체인 대신 OAuth URL만 안정적으로 쓰는 경우가 많음 (@supabase/auth-js가 누락할 때 대비)
-      queryParams: { skip_http_redirect: "true" }
+      skipBrowserRedirect: true
     }
   });
   if (error) throw error;
@@ -150,23 +203,32 @@ export async function signInWithOAuth(provider: OAuthProvider) {
   }
 
   const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
-  if (result.type !== "success" || !result.url) return;
-
-  const code = extractPkceCodeFromCallbackUrl(result.url);
-  const backendRoot = CONFIG.BACKEND_URL?.replace(/\/$/, "");
-  if (
-    !code &&
-    backendRoot &&
-    (result.url.startsWith("http://") || result.url.startsWith("https://")) &&
-    result.url.startsWith(backendRoot) &&
-    !result.url.includes(CONFIG.OAUTH_BRIDGE_PATH)
-  ) {
+  if (result.type === "cancel" || result.type === "dismiss") {
     throw new Error(
-      "구글 로그인 뒤 OAuth 브리지가 아니라 다른 페이지로만 열렸어요. " +
-        "Supabase → Authentication → Redirect URLs에 이 주소를 추가했는지 확인해 주세요: " +
-        `${getHttpsOAuthBridgeUrl() ?? redirectTo}`
+      "로그인 창을 먼저 닫으면 완료되지 않아요. 구글까지 끝나면 보통 1~2초 안에 창이 스스로 닫혀요."
     );
   }
+  if (result.type !== "success" || !result.url) {
+    throw new Error("로그인이 중단되었어요. 다시 시도해 주세요.");
+  }
+
+  const url = result.url;
+  const backendRoot = CONFIG.BACKEND_URL?.replace(/\/$/, "");
+  if (
+    backendRoot &&
+    (url.startsWith("http://") || url.startsWith("https://")) &&
+    url.startsWith(backendRoot) &&
+    !extractPkceCodeFromCallbackUrl(url)
+  ) {
+    throw new Error(
+      "Supabase가 로그인 후 앱 주소 대신 웹(Site URL)로만 보냈어요. " +
+        "Authentication → URL Configuration → Redirect URLs에 아래 한 줄을 **그대로** 추가하고 Save 하세요.\n\n" +
+        `${redirectTo}\n\n` +
+        "터널(`expo start --tunnel`)이면 주소가 바뀌니 Metro에 찍힌 줄과 같아야 해요. `exp://**` 와일드카드도 함께 넣어 두세요."
+    );
+  }
+
+  const code = extractPkceCodeFromCallbackUrl(url);
   if (!code) throw new Error("로그인 코드를 확인할 수 없어요.");
   const { data: sessionData, error: sessionError } = await supabase.auth.exchangeCodeForSession(code);
   if (sessionError) throw sessionError;
@@ -260,10 +322,20 @@ export async function getCurrentUserEmail(): Promise<string | undefined> {
   return data.user?.email;
 }
 
-export async function updatePassword(newPassword: string) {
-  const { data, error } = await supabase.auth.updateUser({ password: newPassword });
+/** e.g. `["email"]`, `["google"]`, or both — for account UI. Prefer `app_metadata.providers` (linked auth methods); `identities` alone can list `email` for OAuth users without a real email-password login. */
+export async function getCurrentUserAuthProviders(): Promise<string[]> {
+  const localSession = await getLocalSession();
+  if (localSession?.userId) return ["local"];
+  const { data, error } = await supabase.auth.getUser();
   if (error) throw error;
-  return data;
+  const user = data.user;
+  if (!user) return [];
+  const meta = user.app_metadata?.providers;
+  if (Array.isArray(meta) && meta.length > 0) {
+    return [...new Set(meta as string[])];
+  }
+  const fromIdentities = user.identities?.map((i) => i.provider) ?? [];
+  return [...new Set(fromIdentities)];
 }
 
 export async function sendPasswordReset(email: string) {
