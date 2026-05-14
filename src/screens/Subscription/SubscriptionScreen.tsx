@@ -1,9 +1,10 @@
 import React from "react";
 import { Alert, View } from "react-native";
 import { Button, Card, Text } from "react-native-paper";
+import * as Linking from "expo-linking";
 import * as WebBrowser from "expo-web-browser";
 import { CONFIG } from "../../constants/config";
-import { createCheckoutSession, fetchPhotoCredits } from "../../services/billing";
+import { createCheckoutSession, fetchMonthlyFreeUsage, fetchPhotoCredits } from "../../services/billing";
 import { supabase } from "../../services/supabase";
 import { useAppStore } from "../../store";
 
@@ -22,6 +23,7 @@ const CREDIT_PACKS: CreditPack[] = [
 export function SubscriptionScreen({ navigation }: { navigation: { goBack: () => void } }) {
   const photoCredits = useAppStore((s) => s.photoCredits);
   const setPhotoCredits = useAppStore((s) => s.setPhotoCredits);
+  const setMonthlyFreeUsed = useAppStore((s) => s.setMonthlyFreeUsed);
   const [busyPack, setBusyPack] = React.useState<string | null>(null);
 
   React.useEffect(() => {
@@ -35,6 +37,8 @@ export function SubscriptionScreen({ navigation }: { navigation: { goBack: () =>
       try {
         const c = await fetchPhotoCredits(session.access_token);
         if (!cancelled) setPhotoCredits(c);
+        const m = await fetchMonthlyFreeUsage(session.access_token);
+        if (!cancelled) setMonthlyFreeUsed(m.used);
       } catch {
         // 무시
       }
@@ -42,7 +46,7 @@ export function SubscriptionScreen({ navigation }: { navigation: { goBack: () =>
     return () => {
       cancelled = true;
     };
-  }, [setPhotoCredits]);
+  }, [setPhotoCredits, setMonthlyFreeUsed]);
 
   const onBuy = async (packId: CreditPack["id"]) => {
     if (CONFIG.SKIP_AUTH_FOR_DEV) {
@@ -61,7 +65,8 @@ export function SubscriptionScreen({ navigation }: { navigation: { goBack: () =>
     }
     setBusyPack(packId);
     try {
-      const url = await createCheckoutSession(packId, session.access_token);
+      const appReturn = Linking.createURL("billing/success");
+      const url = await createCheckoutSession(packId, session.access_token, appReturn);
       await WebBrowser.openBrowserAsync(url);
     } catch (e) {
       Alert.alert("오류", e instanceof Error ? e.message : "결제를 시작할 수 없어요.");

@@ -12,7 +12,8 @@ type AppState = {
   createMode?: CreateMode;
   selectedGender?: "girl" | "boy";
   localSavedPhotos: SavedPhoto[];
-  monthlyFreeCount: number;
+  /** 이번 달(서버 기준) 무료 생성 횟수 — Supabase `user_monthly_free_generations`와 동기화 */
+  monthlyFreeUsed: number;
   setUserId: (id?: string) => void;
   setPhotoCredits: (n: number) => void;
   setPremium: (v: boolean) => void;
@@ -23,7 +24,7 @@ type AppState = {
   setSelectedGender: (gender?: "girl" | "boy") => void;
   addLocalSavedPhoto: (url: string) => void;
   removeLocalSavedPhoto: (id: string) => void;
-  incrementFreeUsage: () => void;
+  setMonthlyFreeUsed: (n: number) => void;
 };
 
 export const useAppStore = create<AppState>((set) => ({
@@ -31,7 +32,7 @@ export const useAppStore = create<AppState>((set) => ({
   isPremium: false,
   createMode: "face",
   localSavedPhotos: [],
-  monthlyFreeCount: 0,
+  monthlyFreeUsed: 0,
   setUserId: (userId) => set({ userId }),
   setPhotoCredits: (photoCredits) => set({ photoCredits }),
   setPremium: (isPremium) => set({ isPremium }),
@@ -55,6 +56,5 @@ export const useAppStore = create<AppState>((set) => ({
     set((state) => ({
       localSavedPhotos: state.localSavedPhotos.filter((p) => p.id !== id)
     })),
-  incrementFreeUsage: () =>
-    set((state) => ({ monthlyFreeCount: state.monthlyFreeCount + 1 }))
+  setMonthlyFreeUsed: (monthlyFreeUsed) => set({ monthlyFreeUsed })
 }));

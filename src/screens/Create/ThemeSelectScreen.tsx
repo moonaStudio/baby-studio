@@ -1,17 +1,22 @@
 import React from "react";
-import { ScrollView, View } from "react-native";
+import { Alert, ScrollView, View } from "react-native";
 import { Button, Card, Chip, Text } from "react-native-paper";
 import { ThemeGrid } from "../../components/ThemeGrid";
 import { useThemes } from "../../hooks/useThemes";
 import { useAppStore } from "../../store";
 import { CONFIG, effectiveIsPremium, isAuthGateSatisfied } from "../../constants/config";
+import {
+  isMonthlyFreeQuotaExhausted,
+  monthlyFreeExhaustedMessage,
+  MONTHLY_FREE_EXHAUSTED_TITLE
+} from "../../constants/monthlyFreeQuota";
 import { Template } from "../../types";
 
 export function ThemeSelectScreen({ navigation }: any) {
   const themes = useThemes();
   const storePremium = useAppStore((s) => s.isPremium);
   const isPremium = effectiveIsPremium(storePremium);
-  const monthlyFreeCount = useAppStore((s) => s.monthlyFreeCount);
+  const monthlyFreeUsed = useAppStore((s) => s.monthlyFreeUsed);
   const selectedGender = useAppStore((s) => s.selectedGender);
   const userId = useAppStore((s) => s.userId);
   const selectedTheme = useAppStore((s) => s.selectedTheme);
@@ -25,6 +30,7 @@ export function ThemeSelectScreen({ navigation }: any) {
   );
   const freeThemes = visibleThemes.filter((theme) => !theme.isPremium);
   const premiumThemes = visibleThemes.filter((theme) => theme.isPremium);
+  const freeQuotaExhausted = isMonthlyFreeQuotaExhausted(isPremium, monthlyFreeUsed);
 
   const onSelect = (theme: Template) => {
     const isThemeChanged = selectedTheme?.slug !== theme.slug;
@@ -34,8 +40,11 @@ export function ThemeSelectScreen({ navigation }: any) {
       setResultImage(undefined);
     }
     setTheme(theme);
-    if (!isPremium && monthlyFreeCount >= CONFIG.FREE_MONTHLY_LIMIT) {
-      navigation.navigate("Subscription");
+    if (!theme.isPremium && freeQuotaExhausted) {
+      Alert.alert(MONTHLY_FREE_EXHAUSTED_TITLE, monthlyFreeExhaustedMessage(CONFIG.FREE_MONTHLY_LIMIT), [
+        { text: "닫기", style: "cancel" },
+        { text: "이용권 보기", onPress: () => navigation.navigate("Subscription") }
+      ]);
       return;
     }
     if (theme.isPremium && !isPremium) {
@@ -70,7 +79,7 @@ export function ThemeSelectScreen({ navigation }: any) {
 
       <View style={{ gap: 6 }}>
         <Text variant="titleMedium">무료 ({freeThemes.length})</Text>
-        <ThemeGrid themes={freeThemes} isPremium={isPremium} onSelect={onSelect} />
+        <ThemeGrid themes={freeThemes} isPremium={isPremium} freeQuotaExhausted={freeQuotaExhausted} onSelect={onSelect} />
       </View>
 
       <View style={{ gap: 6 }}>

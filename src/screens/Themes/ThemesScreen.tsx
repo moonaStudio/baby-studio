@@ -1,10 +1,15 @@
 import React from "react";
-import { ScrollView, View } from "react-native";
+import { Alert, ScrollView, View } from "react-native";
 import { Chip, Text } from "react-native-paper";
 import { ThemeCard } from "../../components/ThemeCard";
 import { useThemes } from "../../hooks/useThemes";
 import { useAppStore } from "../../store";
 import { CONFIG, effectiveIsPremium, isAuthGateSatisfied } from "../../constants/config";
+import {
+  isMonthlyFreeQuotaExhausted,
+  monthlyFreeExhaustedMessage,
+  MONTHLY_FREE_EXHAUSTED_TITLE
+} from "../../constants/monthlyFreeQuota";
 import { Template } from "../../types";
 
 type ThemeFilter = "all" | "free" | "newborn" | "months" | "birthday" | "100day" | "horse";
@@ -24,7 +29,7 @@ export function ThemesScreen({ navigation }: any) {
   const themes = useThemes();
   const storePremium = useAppStore((s) => s.isPremium);
   const isPremium = effectiveIsPremium(storePremium);
-  const monthlyFreeCount = useAppStore((s) => s.monthlyFreeCount);
+  const monthlyFreeUsed = useAppStore((s) => s.monthlyFreeUsed);
   const selectedGender = useAppStore((s) => s.selectedGender);
   const selectedTheme = useAppStore((s) => s.selectedTheme);
   const userId = useAppStore((s) => s.userId);
@@ -52,6 +57,8 @@ export function ThemesScreen({ navigation }: any) {
     return byGender;
   }, [filter, selectedGender, themes]);
 
+  const freeQuotaExhausted = isMonthlyFreeQuotaExhausted(isPremium, monthlyFreeUsed);
+
   const onSelect = (theme: Template) => {
     const isThemeChanged = selectedTheme?.slug !== theme.slug;
     if (isThemeChanged) {
@@ -60,8 +67,11 @@ export function ThemesScreen({ navigation }: any) {
       setResultImage(undefined);
     }
     setTheme(theme);
-    if (!isPremium && monthlyFreeCount >= CONFIG.FREE_MONTHLY_LIMIT) {
-      navigation.navigate("Subscription");
+    if (!theme.isPremium && freeQuotaExhausted) {
+      Alert.alert(MONTHLY_FREE_EXHAUSTED_TITLE, monthlyFreeExhaustedMessage(CONFIG.FREE_MONTHLY_LIMIT), [
+        { text: "닫기", style: "cancel" },
+        { text: "이용권 보기", onPress: () => navigation.navigate("Subscription") }
+      ]);
       return;
     }
     if (theme.isPremium && !isPremium) {
@@ -106,14 +116,19 @@ export function ThemesScreen({ navigation }: any) {
         {FILTER_LABELS[filter]} ({filteredThemes.length})
       </Text>
 
-      {filteredThemes.map((theme) => (
-        <ThemeCard
-          key={theme.slug}
-          template={theme}
-          locked={theme.isPremium && !isPremium}
-          onSelect={() => onSelect(theme)}
-        />
-      ))}
+      {filteredThemes.map((theme) => {
+        const premiumLocked = theme.isPremium && !isPremium;
+        const monthlyLocked = !theme.isPremium && freeQuotaExhausted;
+        return (
+          <ThemeCard
+            key={theme.slug}
+            template={theme}
+            locked={premiumLocked || monthlyLocked}
+            lockReason={monthlyLocked ? "monthly_free" : "premium"}
+            onSelect={() => onSelect(theme)}
+          />
+        );
+      })}
     </ScrollView>
   );
 }

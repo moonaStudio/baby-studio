@@ -1,18 +1,29 @@
 "use client";
 
-import { Suspense, useEffect } from "react";
+import { Suspense, useEffect, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
+import { parseAppReturnFromSearchParam } from "../../lib/billingAppReturnUrl";
 
 function ReturnInner() {
   const searchParams = useSearchParams();
   const sessionId = searchParams.get("session_id");
+  const appReturnRaw = searchParams.get("app_return");
+
+  const target = useMemo(() => {
+    if (!sessionId) return null;
+    const appBase = parseAppReturnFromSearchParam(appReturnRaw);
+    if (appBase) {
+      const join = appBase.includes("?") ? "&" : "?";
+      return `${appBase}${join}session_id=${encodeURIComponent(sessionId)}`;
+    }
+    const scheme = process.env.NEXT_PUBLIC_APP_SCHEME ?? "babystudio";
+    return `${scheme}://billing/success?session_id=${encodeURIComponent(sessionId)}`;
+  }, [sessionId, appReturnRaw]);
 
   useEffect(() => {
-    if (!sessionId) return;
-    const scheme = process.env.NEXT_PUBLIC_APP_SCHEME ?? "babystudio";
-    const target = `${scheme}://billing/success?session_id=${encodeURIComponent(sessionId)}`;
+    if (!target) return;
     window.location.replace(target);
-  }, [sessionId]);
+  }, [target]);
 
   return (
     <main style={{ padding: 24, fontFamily: "system-ui" }}>

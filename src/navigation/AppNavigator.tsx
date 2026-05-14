@@ -24,7 +24,8 @@ import { UploadScreen } from "../screens/Upload/UploadScreen";
 import { ThemesScreen } from "../screens/Themes/ThemesScreen";
 import { GenderSelectScreen } from "../screens/Create/GenderSelectScreen";
 import * as Linking from "expo-linking";
-import { refreshPhotoCreditsForSession } from "../services/billing";
+import * as WebBrowser from "expo-web-browser";
+import { refreshMonthlyFreeForSession, refreshPhotoCreditsForSession } from "../services/billing";
 import { CONFIG } from "../constants/config";
 import { getCurrentUserId, supabase } from "../services/supabase";
 import { useAppStore } from "../store";
@@ -133,6 +134,7 @@ function MainTabs() {
 export function AppNavigator() {
   const setUserId = useAppStore((s) => s.setUserId);
   const setPhotoCredits = useAppStore((s) => s.setPhotoCredits);
+  const setMonthlyFreeUsed = useAppStore((s) => s.setMonthlyFreeUsed);
   const [authBootstrapped, setAuthBootstrapped] = React.useState(false);
   const [initialRouteName, setInitialRouteName] = React.useState<"Login" | "MainTabs">("Login");
 
@@ -146,6 +148,17 @@ export function AppNavigator() {
       // 네트워크/미설정 시 무시 (설정·구독 화면에서 재시도 가능)
     }
   }, [setPhotoCredits]);
+
+  const syncMonthlyFree = React.useCallback(async () => {
+    try {
+      const row = await refreshMonthlyFreeForSession();
+      if (row !== null) {
+        setMonthlyFreeUsed(row.used);
+      }
+    } catch {
+      // 무시
+    }
+  }, [setMonthlyFreeUsed]);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -161,6 +174,7 @@ export function AppNavigator() {
         }
         if (id && !CONFIG.SKIP_AUTH_FOR_DEV) {
           void syncCredits();
+          void syncMonthlyFree();
         }
       })
       .catch(() => {
@@ -182,18 +196,22 @@ export function AppNavigator() {
       if (event === "TOKEN_REFRESHED" || event === "USER_UPDATED") {
         if (session?.user?.id) {
           setUserId(session.user.id);
+          void syncCredits();
+          void syncMonthlyFree();
         }
         return;
       }
       if (session?.user?.id) {
         setUserId(session.user.id);
         void syncCredits();
+        void syncMonthlyFree();
         if (event === "SIGNED_IN") {
           resetTo("MainTabs");
         }
       } else {
         setUserId(undefined);
         setPhotoCredits(0);
+        setMonthlyFreeUsed(0);
         if (event === "SIGNED_OUT") {
           resetTo("Login");
         }
@@ -204,12 +222,17 @@ export function AppNavigator() {
       cancelled = true;
       data.subscription.unsubscribe();
     };
-  }, [setUserId, setPhotoCredits, syncCredits]);
+  }, [setUserId, setPhotoCredits, setMonthlyFreeUsed, syncCredits, syncMonthlyFree]);
 
   React.useEffect(() => {
     const handleUrl = (url: string | null) => {
       if (!url) return;
       if (url.includes("billing/success")) {
+        try {
+          void WebBrowser.dismissBrowser();
+        } catch {
+          // no in-app browser open
+        }
         void syncCredits();
       }
     };

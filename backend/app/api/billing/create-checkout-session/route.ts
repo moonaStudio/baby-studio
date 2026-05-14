@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getStripe } from "../../../lib/stripeServer";
 import { getUserIdFromBearer } from "../../../lib/supabaseAuthFromRequest";
 import { createClient } from "@supabase/supabase-js";
+import { parseAppReturnFromBody } from "../../../lib/billingAppReturnUrl";
 import { CREDIT_PACKS, isCreditPackId } from "../../../lib/creditPacks";
 
 export async function POST(req: Request) {
@@ -16,8 +17,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const body = (await req.json().catch(() => null)) as { packId?: string } | null;
+    const body = (await req.json().catch(() => null)) as { packId?: string; appReturn?: unknown } | null;
     const packId = body?.packId;
+    const appReturn = parseAppReturnFromBody(body?.appReturn);
     if (!packId || !isCreditPackId(packId)) {
       return NextResponse.json({ error: "Invalid packId" }, { status: 400 });
     }
@@ -34,6 +36,10 @@ export async function POST(req: Request) {
       } = await supabase.auth.getUser(jwt);
       customerEmail = user?.email ?? undefined;
     }
+
+    const returnQuery = appReturn
+      ? `session_id={CHECKOUT_SESSION_ID}&app_return=${encodeURIComponent(appReturn)}`
+      : "session_id={CHECKOUT_SESSION_ID}";
 
     const stripe = getStripe();
     const session = await stripe.checkout.sessions.create({
@@ -56,7 +62,7 @@ export async function POST(req: Request) {
         user_id: userId,
         credits: String(pack.credits)
       },
-      success_url: `${siteUrl}/billing/return?session_id={CHECKOUT_SESSION_ID}`,
+      success_url: `${siteUrl}/billing/return?${returnQuery}`,
       cancel_url: `${siteUrl}/billing/cancel`
     });
 

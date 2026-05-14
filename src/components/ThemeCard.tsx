@@ -7,10 +7,12 @@ import { PremiumBadge } from "./PremiumBadge";
 type Props = {
   template: Template;
   locked: boolean;
+  /** Why the card is locked — changes the action label */
+  lockReason?: "premium" | "monthly_free";
   onSelect: () => void;
 };
 
-export function ThemeCard({ template, locked, onSelect }: Props) {
+export function ThemeCard({ template, locked, lockReason = "premium", onSelect }: Props) {
   const source = template.previewImage
     ? template.previewImage
     : {
@@ -28,7 +30,11 @@ export function ThemeCard({ template, locked, onSelect }: Props) {
           {template.isPremium && <PremiumBadge />}
         </View>
         <Button mode={locked ? "outlined" : "contained"} onPress={onSelect}>
-          {locked ? "프리미엄 보기" : "테마 사용"}
+          {locked
+            ? lockReason === "monthly_free"
+              ? "이번 달 한도 도달"
+              : "프리미엄 보기"
+            : "테마 사용"}
         </Button>
       </Card.Content>
     </Card>
