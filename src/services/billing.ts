@@ -16,6 +16,11 @@ function monthlyFreeUrl(): string {
   return `${base}/api/billing/monthly-free`;
 }
 
+function consumeCreditUrl(): string {
+  const base = CONFIG.BACKEND_URL.replace(/\/$/, "");
+  return `${base}/api/billing/consume-credit`;
+}
+
 export async function fetchPhotoCredits(accessToken: string): Promise<number> {
   const res = await fetch(creditsUrl(), {
     headers: { Authorization: `Bearer ${accessToken}` }
@@ -69,6 +74,38 @@ export async function incrementMonthlyFreeUsage(accessToken: string): Promise<{ 
     throw new Error(j.error ?? `월 무료 사용 반영 실패 (${res.status})`);
   }
   return { used: j.used, month: j.month };
+}
+
+/** Returns new balance, or `null` if insufficient credits (402). */
+export async function consumePhotoCredit(accessToken: string): Promise<number | null> {
+  const res = await fetch(consumeCreditUrl(), {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}` }
+  });
+  const j = (await res.json().catch(() => ({}))) as { credits?: number; error?: string };
+  if (res.status === 402) {
+    return null;
+  }
+  if (res.status === 404) {
+    throw new Error(
+      "크레딧 차감 API를 찾을 수 없어요 (404). 배포된 백엔드에 `/api/billing/consume-credit`가 포함됐는지, 앱의 EXPO_PUBLIC_BACKEND_URL이 그 서버를 가리키는지 확인해 주세요. (404는 Supabase 함수 없음이 아니라 보통 서버 경로 문제입니다.)"
+    );
+  }
+  if (res.status === 401) {
+    throw new Error(j.error ?? "인증이 필요해요. 다시 로그인한 뒤 시도해 주세요.");
+  }
+  if (!res.ok || typeof j.credits !== "number") {
+    const server = j.error?.trim();
+    if (res.status >= 500) {
+      throw new Error(
+        server
+          ? `${server}\n\n(Supabase에 public.consume_one_photo_credit 마이그레이션이 적용됐는지, 서버 환경 변수를 확인해 주세요.)`
+          : `크레딧 차감 실패 (${res.status}). Supabase RPC와 서버 로그를 확인해 주세요.`
+      );
+    }
+    throw new Error(server || `크레딧 차감 실패 (${res.status})`);
+  }
+  return j.credits;
 }
 
 export async function refreshMonthlyFreeForSession(): Promise<{ used: number; month: string } | null> {

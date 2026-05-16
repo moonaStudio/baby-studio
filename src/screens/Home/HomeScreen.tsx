@@ -3,6 +3,7 @@ import { Image, ScrollView, View } from "react-native";
 import { Button, Card, Chip, IconButton, Text } from "react-native-paper";
 import { useThemes } from "../../hooks/useThemes";
 import { CONFIG } from "../../constants/config";
+import { useMonthlyFreeLimit } from "../../hooks/useMonthlyFreeLimit";
 import { Template } from "../../types";
 
 import ExampleAfter1 from "../../../assets/example/after_1.png";
@@ -27,6 +28,7 @@ function homeFreeThemeLabel(theme: Template): string {
 }
 
 export function HomeScreen({ navigation }: any) {
+  const monthlyFreeLimit = useMonthlyFreeLimit();
   const themes = useThemes();
   const freeThemes = themes.filter((theme) => !theme.isPremium).slice(0, 3);
   const [exampleIndex, setExampleIndex] = React.useState(0);
@@ -91,7 +93,7 @@ export function HomeScreen({ navigation }: any) {
 
           <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
             <Chip compact icon="gift-outline">
-              무료 {CONFIG.FREE_MONTHLY_LIMIT}장/월
+              무료 {monthlyFreeLimit}장/월
             </Chip>
             <Chip compact icon="palette-outline">
               테마 {themes.length}개

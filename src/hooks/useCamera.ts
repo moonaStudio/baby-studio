@@ -11,5 +11,7 @@ export function useCamera() {
     if (!result.canceled) setImageUri(result.assets[0].uri);
   };
 
-  return { imageUri, takePhoto };
+  const clearLocalImage = () => setImageUri(undefined);
+
+  return { imageUri, takePhoto, clearLocalImage };
 }

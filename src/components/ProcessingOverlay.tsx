@@ -14,7 +14,7 @@ export function ProcessingOverlay({ step }: { step: number }) {
       <ActivityIndicator animating size="large" />
       <Text variant="titleMedium">사진을 만들고 있어요…</Text>
       <Text variant="bodySmall" style={{ opacity: 0.75 }}>
-        AI 처리에는 시간이 걸릴 수 있어요.
+        완성까지 조금 시간이 걸릴 수 있어요.
       </Text>
       {STEPS.map((label, idx) => {
         const done = idx < current;

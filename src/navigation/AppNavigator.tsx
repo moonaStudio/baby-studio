@@ -26,6 +26,7 @@ import { GenderSelectScreen } from "../screens/Create/GenderSelectScreen";
 import * as Linking from "expo-linking";
 import * as WebBrowser from "expo-web-browser";
 import { refreshMonthlyFreeForSession, refreshPhotoCreditsForSession } from "../services/billing";
+import { refreshThemePromotionsFromServer } from "../hooks/useThemes";
 import { CONFIG } from "../constants/config";
 import { getCurrentUserId, supabase } from "../services/supabase";
 import { useAppStore } from "../store";
@@ -160,6 +161,14 @@ export function AppNavigator() {
     }
   }, [setMonthlyFreeUsed]);
 
+  const syncThemePromotions = React.useCallback(async () => {
+    try {
+      await refreshThemePromotionsFromServer();
+    } catch {
+      // 무시
+    }
+  }, []);
+
   React.useEffect(() => {
     let cancelled = false;
 
@@ -172,6 +181,7 @@ export function AppNavigator() {
         } else {
           setInitialRouteName(id ? "MainTabs" : "Login");
         }
+        void syncThemePromotions();
         if (id && !CONFIG.SKIP_AUTH_FOR_DEV) {
           void syncCredits();
           void syncMonthlyFree();
@@ -198,6 +208,7 @@ export function AppNavigator() {
           setUserId(session.user.id);
           void syncCredits();
           void syncMonthlyFree();
+          void syncThemePromotions();
         }
         return;
       }
@@ -205,6 +216,7 @@ export function AppNavigator() {
         setUserId(session.user.id);
         void syncCredits();
         void syncMonthlyFree();
+        void syncThemePromotions();
         if (event === "SIGNED_IN") {
           resetTo("MainTabs");
         }
@@ -222,7 +234,7 @@ export function AppNavigator() {
       cancelled = true;
       data.subscription.unsubscribe();
     };
-  }, [setUserId, setPhotoCredits, setMonthlyFreeUsed, syncCredits, syncMonthlyFree]);
+  }, [setUserId, setPhotoCredits, setMonthlyFreeUsed, syncCredits, syncMonthlyFree, syncThemePromotions]);
 
   React.useEffect(() => {
     const handleUrl = (url: string | null) => {

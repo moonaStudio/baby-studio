@@ -10,6 +10,8 @@ export function ModeSelectScreen({ navigation }: any) {
   const selectedTheme = useAppStore((s) => s.selectedTheme);
   const createMode = useAppStore((s) => s.createMode);
   const setCreateMode = useAppStore((s) => s.setCreateMode);
+  const setSelectedImage = useAppStore((s) => s.setSelectedImage);
+  const setResultImage = useAppStore((s) => s.setResultImage);
   const hasChosenTheme = Boolean(selectedTheme);
   const hasChosenImage = Boolean(selectedImageUri);
 
@@ -51,6 +53,18 @@ export function ModeSelectScreen({ navigation }: any) {
       >
         계속하기
       </Button>
+      {hasChosenImage ? (
+        <Button
+          mode="outlined"
+          onPress={() => {
+            setSelectedImage(undefined);
+            setResultImage(undefined);
+            navigation.navigate("Create");
+          }}
+        >
+          사진 고르러 가기
+        </Button>
+      ) : null}
     </View>
   );
 }

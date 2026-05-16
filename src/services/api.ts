@@ -32,7 +32,7 @@ export async function processImage(payload: ProcessRequest): Promise<ProcessResp
     const msg = e && typeof e === "object" && "message" in e ? String((e as { message?: string }).message) : "";
     if (name === "AbortError" || /abort/i.test(msg)) {
       throw new Error(
-        "Processing timed out (network wait was too long). Try again—OpenAI or Replicate can take 1–3 minutes on a slow run."
+        "처리 시간이 길어져 중단됐어요. 네트워크를 확인한 뒤 다시 시도해 주세요. (느린 경우 1~3분까지 걸릴 수 있어요.)"
       );
     }
     throw e;

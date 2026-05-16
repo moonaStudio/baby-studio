@@ -1,7 +1,7 @@
-import { CONFIG } from "./config";
+import { getMonthlyFreeLimit } from "./monthlyFreeLimit";
 
 export function isMonthlyFreeQuotaExhausted(isPremium: boolean, monthlyFreeUsed: number): boolean {
-  return !isPremium && monthlyFreeUsed >= CONFIG.FREE_MONTHLY_LIMIT;
+  return !isPremium && monthlyFreeUsed >= getMonthlyFreeLimit();
 }
 
 export const MONTHLY_FREE_EXHAUSTED_TITLE = "이번 달 무료 이용이 끝났어요";

@@ -40,5 +40,7 @@ export function useImagePicker() {
     setImageUri(result.assets[0].uri);
   };
 
-  return { imageUri, pickImage };
+  const clearLocalImage = () => setImageUri(undefined);
+
+  return { imageUri, pickImage, clearLocalImage };
 }

@@ -9,7 +9,13 @@ export default function HomePage() {
           <code>/api/themes</code>
         </li>
         <li>
+          <code>/api/themes/promotions</code> (앱 원격 설정)
+        </li>
+        <li>
           <code>/api/process</code> (POST)
+        </li>
+        <li>
+          <a href="/admin/themes">운영 어드민 (테마·무료 장수)</a>
         </li>
       </ul>
     </main>

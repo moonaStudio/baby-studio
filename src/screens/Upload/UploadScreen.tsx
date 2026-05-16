@@ -8,10 +8,11 @@ import { useAppStore } from "../../store";
 import { ImagePreview } from "../../components/ImagePreview";
 
 export function UploadScreen({ navigation }: any) {
-  const { imageUri, pickImage } = useImagePicker();
+  const { imageUri, pickImage, clearLocalImage } = useImagePicker();
   const selectedTheme = useAppStore((s) => s.selectedTheme);
   const userId = useAppStore((s) => s.userId);
   const setSelectedImage = useAppStore((s) => s.setSelectedImage);
+  const setResultImage = useAppStore((s) => s.setResultImage);
   const openedRef = useRef(false);
 
   useFocusEffect(
@@ -20,8 +21,18 @@ export function UploadScreen({ navigation }: any) {
         openedRef.current = true;
         void pickImage();
       }
+      return () => {
+        openedRef.current = false;
+      };
     }, [imageUri, pickImage])
   );
+
+  const goPickPhotoAgain = () => {
+    clearLocalImage();
+    setSelectedImage(undefined);
+    setResultImage(undefined);
+    navigation.navigate("Create");
+  };
 
   return (
     <View style={{ flex: 1, padding: 16, gap: 12 }}>
@@ -33,23 +44,28 @@ export function UploadScreen({ navigation }: any) {
       ) : null}
       <ImagePreview uri={imageUri} />
       {imageUri && (
-        <Button
-          mode="contained"
-          onPress={() => {
-            setSelectedImage(imageUri);
-            if (!isAuthGateSatisfied(userId)) {
-              navigation.navigate("Login");
-              return;
-            }
-            if (selectedTheme) {
-              navigation.navigate("Processing");
-              return;
-            }
-            navigation.navigate("ThemeSelect");
-          }}
-        >
-          계속하기
-        </Button>
+        <>
+          <Button
+            mode="contained"
+            onPress={() => {
+              setSelectedImage(imageUri);
+              if (!isAuthGateSatisfied(userId)) {
+                navigation.navigate("Login");
+                return;
+              }
+              if (selectedTheme) {
+                navigation.navigate("Processing");
+                return;
+              }
+              navigation.navigate("ThemeSelect");
+            }}
+          >
+            계속하기
+          </Button>
+          <Button mode="outlined" onPress={goPickPhotoAgain}>
+            사진 고르러 가기
+          </Button>
+        </>
       )}
     </View>
   );

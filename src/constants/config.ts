@@ -8,7 +8,7 @@ export const MANUAL_SKIP_AUTH_FOR_DEV = false;
  * 프리미엄 테마·한도 체크를 전부 통과해 테스트할 때만 `true`.
  * 배포 전에는 반드시 `false`.
  */
-export const MANUAL_PREMIUM_FOR_DEV = true;
+export const MANUAL_PREMIUM_FOR_DEV = false;
 
 export const CONFIG = {
   SUPABASE_URL: process.env.EXPO_PUBLIC_SUPABASE_URL ?? "",
@@ -46,4 +46,9 @@ export function isAuthGateSatisfied(userId?: string): boolean {
 /** 스토어의 구독 상태와 무관하게, 플래그 켜지면 항상 프리미엄으로 취급 */
 export function effectiveIsPremium(storeIsPremium: boolean): boolean {
   return storeIsPremium || CONFIG.PREMIUM_ALL_FOR_DEV;
+}
+
+/** 프리미엄 테마 선택·생성: 구독/개발 무제한이면 크레딧 없이, 아니면 크레딧 1장 이상 필요 */
+export function canAccessPremiumThemes(storeIsPremium: boolean, photoCredits: number): boolean {
+  return effectiveIsPremium(storeIsPremium) || photoCredits > 0;
 }

@@ -4,7 +4,9 @@ import { Chip, Text } from "react-native-paper";
 import { ThemeCard } from "../../components/ThemeCard";
 import { useThemes } from "../../hooks/useThemes";
 import { useAppStore } from "../../store";
-import { CONFIG, effectiveIsPremium, isAuthGateSatisfied } from "../../constants/config";
+import { canAccessPremiumThemes, effectiveIsPremium, isAuthGateSatisfied } from "../../constants/config";
+import { getMonthlyFreeLimit } from "../../constants/monthlyFreeLimit";
+import { useRefreshThemePromotionsOnMount } from "../../hooks/useThemes";
 import {
   isMonthlyFreeQuotaExhausted,
   monthlyFreeExhaustedMessage,
@@ -25,17 +27,18 @@ const FILTER_LABELS: Record<ThemeFilter, string> = {
 };
 
 export function ThemesScreen({ navigation }: any) {
+  useRefreshThemePromotionsOnMount();
   const [filter, setFilter] = React.useState<ThemeFilter>("free");
   const themes = useThemes();
   const storePremium = useAppStore((s) => s.isPremium);
+  const photoCredits = useAppStore((s) => s.photoCredits);
   const isPremium = effectiveIsPremium(storePremium);
+  const canAccessPremium = canAccessPremiumThemes(storePremium, photoCredits);
   const monthlyFreeUsed = useAppStore((s) => s.monthlyFreeUsed);
   const selectedGender = useAppStore((s) => s.selectedGender);
-  const selectedTheme = useAppStore((s) => s.selectedTheme);
   const userId = useAppStore((s) => s.userId);
   const setSelectedGender = useAppStore((s) => s.setSelectedGender);
   const setTheme = useAppStore((s) => s.setTheme);
-  const setSelectedImage = useAppStore((s) => s.setSelectedImage);
   const setResultImage = useAppStore((s) => s.setResultImage);
 
   const filteredThemes = React.useMemo(() => {
@@ -60,30 +63,24 @@ export function ThemesScreen({ navigation }: any) {
   const freeQuotaExhausted = isMonthlyFreeQuotaExhausted(isPremium, monthlyFreeUsed);
 
   const onSelect = (theme: Template) => {
-    const isThemeChanged = selectedTheme?.slug !== theme.slug;
-    if (isThemeChanged) {
-      // Prevent previous theme's photo/result from being reused accidentally.
-      setSelectedImage(undefined);
-      setResultImage(undefined);
-    }
-    setTheme(theme);
     if (!theme.isPremium && freeQuotaExhausted) {
-      Alert.alert(MONTHLY_FREE_EXHAUSTED_TITLE, monthlyFreeExhaustedMessage(CONFIG.FREE_MONTHLY_LIMIT), [
+      Alert.alert(MONTHLY_FREE_EXHAUSTED_TITLE, monthlyFreeExhaustedMessage(getMonthlyFreeLimit()), [
         { text: "닫기", style: "cancel" },
         { text: "이용권 보기", onPress: () => navigation.navigate("Subscription") }
       ]);
       return;
     }
-    if (theme.isPremium && !isPremium) {
+    if (theme.isPremium && !canAccessPremium) {
       navigation.navigate("Subscription");
       return;
     }
-    const hasImage = Boolean(useAppStore.getState().selectedImageUri);
-    if (hasImage && !isAuthGateSatisfied(userId)) {
+    if (!isAuthGateSatisfied(userId)) {
       navigation.navigate("Login");
       return;
     }
-    navigation.navigate(hasImage ? "Processing" : "Create");
+    setResultImage(undefined);
+    setTheme(theme);
+    navigation.navigate("Create");
   };
 
   return (
@@ -117,7 +114,7 @@ export function ThemesScreen({ navigation }: any) {
       </Text>
 
       {filteredThemes.map((theme) => {
-        const premiumLocked = theme.isPremium && !isPremium;
+        const premiumLocked = theme.isPremium && !canAccessPremium;
         const monthlyLocked = !theme.isPremium && freeQuotaExhausted;
         return (
           <ThemeCard

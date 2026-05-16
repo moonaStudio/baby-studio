@@ -15,6 +15,8 @@ import { deleteGeneratedPhoto, fetchGeneratedPhotos, GeneratedPhoto } from "../.
 import { useAppStore } from "../../store";
 import { SavedPhoto } from "../../types";
 import { saveImageUriToDeviceLibrary, shareImageUri, triggerWebDownload } from "../../utils/resultImageFile";
+import { appendToPersistedAppGallery } from "../../utils/recordPersistedGallery";
+import { isPersistedAppGalleryPath } from "../../utils/appGalleryStorage";
 
 type GalleryItem = SavedPhoto | GeneratedPhoto;
 
@@ -25,6 +27,7 @@ function isLocalItem(item: GalleryItem): boolean {
 export function GalleryScreen() {
   const userId = useAppStore((s) => s.userId);
   const localSavedPhotos = useAppStore((s) => s.localSavedPhotos);
+  const addLocalSavedPhoto = useAppStore((s) => s.addLocalSavedPhoto);
   const removeLocalSavedPhoto = useAppStore((s) => s.removeLocalSavedPhoto);
   const { width } = useWindowDimensions();
   const [items, setItems] = useState<GeneratedPhoto[]>([]);
@@ -92,8 +95,26 @@ export function GalleryScreen() {
   const onSave = async (uri: string) => {
     setActionBusy("save");
     try {
+      if (Platform.OS === "web") {
+        triggerWebDownload(uri);
+        Alert.alert("저장", "브라우저에서 파일 저장을 시작했어요.");
+        return;
+      }
       await saveImageUriToDeviceLibrary(uri);
-      Alert.alert("저장 완료", "사진 앱에 저장했어요.");
+      if (isPersistedAppGalleryPath(uri)) {
+        Alert.alert("저장 완료", "사진 앱에 저장했어요.");
+        return;
+      }
+      try {
+        await appendToPersistedAppGallery(addLocalSavedPhoto, uri);
+      } catch {
+        Alert.alert(
+          "저장 안내",
+          "사진 앱에는 저장됐어요. Moona 갤러리 목록에만 반영하지 못했어요."
+        );
+        return;
+      }
+      Alert.alert("저장 완료", "사진 앱과 Moona 갤러리에 모두 저장했어요.");
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
       Alert.alert("저장 실패", msg || "다시 시도해 주세요.");
@@ -195,7 +216,9 @@ export function GalleryScreen() {
                 />
                 <Text variant="bodyMedium" style={{ marginTop: 12, marginBottom: 16 }}>
                   {new Date(selected.created_at).toLocaleString()}
-                  {isLocalItem(selected) ? " · 이 기기에만 저장됨" : ""}
+                  {isLocalItem(selected)
+                    ? " · 이 기기 Moona 폴더에 저장됨 (앱을 지워도 사진 앱에 따로 저장한 경우는 유지돼요)"
+                    : ""}
                 </Text>
                 <View style={{ gap: 10 }}>
                   <Button
@@ -203,14 +226,10 @@ export function GalleryScreen() {
                     loading={actionBusy === "save"}
                     disabled={actionBusy !== null}
                     onPress={() => {
-                      if (Platform.OS === "web" && selected) {
-                        triggerWebDownload(selected.result_url);
-                        return;
-                      }
                       if (selected) void onSave(selected.result_url);
                     }}
                   >
-                    사진함에 저장
+                    사진 앱 + Moona 갤러리에 저장
                   </Button>
                   <Button
                     mode="outlined"
