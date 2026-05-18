@@ -4,7 +4,7 @@ import { usageMonthKeySeoul } from "../../../lib/usageMonthKey";
 import { getAdminPromotions, saveAdminPromotions } from "../../../lib/themePromotionsDb";
 
 export async function GET(req: Request) {
-  if (!isAdminAuthorized(req)) return adminUnauthorizedResponse();
+  if (!isAdminAuthorized(req)) return adminUnauthorizedResponse(req);
   try {
     const url = new URL(req.url);
     const monthParam = url.searchParams.get("month");
@@ -19,7 +19,7 @@ export async function GET(req: Request) {
 }
 
 export async function PUT(req: Request) {
-  if (!isAdminAuthorized(req)) return adminUnauthorizedResponse();
+  if (!isAdminAuthorized(req)) return adminUnauthorizedResponse(req);
   try {
     const body = (await req.json()) as {
       month?: string;

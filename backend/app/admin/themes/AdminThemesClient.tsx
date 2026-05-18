@@ -29,10 +29,23 @@ export function AdminThemesClient() {
   const [saving, setSaving] = React.useState(false);
   const [message, setMessage] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
+  const [serverStatus, setServerStatus] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     const saved = typeof window !== "undefined" ? sessionStorage.getItem(STORAGE_KEY) : null;
     if (saved) setAdminKey(saved);
+    void fetch("/api/admin/status")
+      .then((r) => r.json())
+      .then((j: { adminConfigured?: boolean; hint?: string }) => {
+        if (j.adminConfigured === false) {
+          setServerStatus(
+            "⚠️ 이 배포(Vercel Production)에 ADMIN_SECRET이 아직 없습니다. Vercel 환경 변수에 넣고 Redeploy 해 주세요."
+          );
+        } else if (j.adminConfigured === true) {
+          setServerStatus("✓ 서버에 ADMIN_SECRET이 설정되어 있어요. 아래 비밀번호는 Vercel과 동일해야 합니다.");
+        }
+      })
+      .catch(() => undefined);
   }, []);
 
   const load = React.useCallback(async () => {
@@ -48,8 +61,8 @@ export function AdminThemesClient() {
       const res = await fetch(`/api/admin/theme-promotions${q}`, {
         headers: { "x-admin-key": adminKey.trim() }
       });
-      const j = (await res.json()) as AdminPayload & { error?: string };
-      if (!res.ok) throw new Error(j.error ?? `불러오기 실패 (${res.status})`);
+      const j = (await res.json()) as AdminPayload & { error?: string; message?: string };
+      if (!res.ok) throw new Error(j.message ?? j.error ?? `불러오기 실패 (${res.status})`);
       sessionStorage.setItem(STORAGE_KEY, adminKey.trim());
       setMonth(j.month);
       setMonthlyFreeLimit(j.monthlyFreeLimit);
@@ -87,8 +100,8 @@ export function AdminThemesClient() {
           themes: themes.map((t) => ({ slug: t.slug, isPremium: t.isPremium }))
         })
       });
-      const j = (await res.json()) as AdminPayload & { error?: string };
-      if (!res.ok) throw new Error(j.error ?? `저장 실패 (${res.status})`);
+      const j = (await res.json()) as AdminPayload & { error?: string; message?: string };
+      if (!res.ok) throw new Error(j.message ?? j.error ?? `저장 실패 (${res.status})`);
       setThemes(j.themes);
       setMonthlyFreeLimit(j.monthlyFreeLimit);
       setMessage(`${j.month} 설정을 저장했어요. 앱은 다시 열거나 테마 탭으로 들어가면 반영돼요.`);
@@ -169,8 +182,9 @@ export function AdminThemesClient() {
         </div>
       </section>
 
+      {serverStatus ? <p style={{ color: "#555", fontSize: 14 }}>{serverStatus}</p> : null}
       {message ? <p style={{ color: "#0a7" }}>{message}</p> : null}
-      {error ? <p style={{ color: "#c00" }}>{error}</p> : null}
+      {error ? <p style={{ color: "#c00", whiteSpace: "pre-wrap" }}>{error}</p> : null}
 
       {themes.length > 0 ? (
         <>
