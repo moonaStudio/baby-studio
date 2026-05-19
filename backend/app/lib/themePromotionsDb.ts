@@ -1,5 +1,7 @@
 import { getSupabaseAdmin } from "./supabaseAdmin";
+import { listAllThemesAdmin, listPublishedThemes } from "./themeCatalogDb";
 import { THEME_CATALOG, type ThemeCatalogEntry } from "./themeCatalog";
+import type { ThemeCatalogDto } from "./themeTypes";
 
 const DEFAULT_MONTHLY_FREE_LIMIT = 5;
 
@@ -40,8 +42,24 @@ async function loadOverrideMap(promoMonth: string): Promise<Map<string, boolean>
   return map;
 }
 
-export function resolveThemesForMonth(overrides: Map<string, boolean>): ResolvedThemeRow[] {
-  return THEME_CATALOG.map((entry) => {
+function mergedCatalogEntries(remote: ThemeCatalogDto[]): ThemeCatalogEntry[] {
+  const bundledSlugs = new Set(THEME_CATALOG.map((t) => t.slug));
+  const extra: ThemeCatalogEntry[] = remote
+    .filter((r) => !bundledSlugs.has(r.slug))
+    .map((r) => ({
+      slug: r.slug,
+      name: r.name,
+      category: r.category,
+      defaultIsPremium: r.defaultIsPremium
+    }));
+  return [...THEME_CATALOG, ...extra];
+}
+
+export function resolveThemesForMonth(
+  overrides: Map<string, boolean>,
+  remote: ThemeCatalogDto[] = []
+): ResolvedThemeRow[] {
+  return mergedCatalogEntries(remote).map((entry) => {
     const hasOverride = overrides.has(entry.slug);
     const isPremium = hasOverride ? overrides.get(entry.slug)! : entry.defaultIsPremium;
     return { ...entry, isPremium, hasOverride };
@@ -50,7 +68,8 @@ export function resolveThemesForMonth(overrides: Map<string, boolean>): Resolved
 
 export async function getPublicPromotions(promoMonth: string) {
   const overrides = await loadOverrideMap(promoMonth);
-  const themes = resolveThemesForMonth(overrides);
+  const remote = await listPublishedThemes();
+  const themes = resolveThemesForMonth(overrides, remote);
   const monthlyFreeLimit = await getMonthlyFreeLimit();
   const premiumBySlug: Record<string, boolean> = {};
   const overrideSlugs: string[] = [];
@@ -62,13 +81,25 @@ export async function getPublicPromotions(promoMonth: string) {
     month: promoMonth,
     monthlyFreeLimit,
     premiumBySlug,
-    overrideSlugs
+    overrideSlugs,
+    remoteThemes: remote.map((r) => ({
+      slug: r.slug,
+      name: r.name,
+      category: r.category,
+      gender: r.gender,
+      defaultIsPremium: r.defaultIsPremium,
+      previewUrl: r.previewUrl,
+      backgroundUrl: r.backgroundUrl,
+      colorProfile: r.colorProfile,
+      sortOrder: r.sortOrder
+    }))
   };
 }
 
 export async function getAdminPromotions(promoMonth: string) {
   const overrides = await loadOverrideMap(promoMonth);
-  const themes = resolveThemesForMonth(overrides);
+  const remote = await listAllThemesAdmin().catch(() => [] as ThemeCatalogDto[]);
+  const themes = resolveThemesForMonth(overrides, remote);
   const monthlyFreeLimit = await getMonthlyFreeLimit();
   return { month: promoMonth, monthlyFreeLimit, themes };
 }
@@ -79,16 +110,19 @@ export async function saveAdminPromotions(
   rows: { slug: string; isPremium: boolean }[]
 ) {
   const admin = getSupabaseAdmin();
-  const known = new Set(THEME_CATALOG.map((t) => t.slug));
+  const remote = await listAllThemesAdmin().catch(() => []);
+  const known = new Set([...THEME_CATALOG.map((t) => t.slug), ...remote.map((r) => r.slug)]);
   const toSave = rows.filter((r) => known.has(r.slug));
 
   const { error: delErr } = await admin.from("theme_month_promotions").delete().eq("promo_month", promoMonth);
   if (delErr) throw delErr;
 
+  const catalog = mergedCatalogEntries(remote);
   const inserts = toSave
     .filter((r) => {
-      const def = getCatalogEntryOrThrow(r.slug).defaultIsPremium;
-      return r.isPremium !== def;
+      const entry = catalog.find((t) => t.slug === r.slug);
+      if (!entry) return false;
+      return r.isPremium !== entry.defaultIsPremium;
     })
     .map((r) => ({
       promo_month: promoMonth,
@@ -103,10 +137,4 @@ export async function saveAdminPromotions(
   }
 
   await setMonthlyFreeLimit(monthlyFreeLimit);
-}
-
-function getCatalogEntryOrThrow(slug: string) {
-  const e = THEME_CATALOG.find((t) => t.slug === slug);
-  if (!e) throw new Error(`Unknown theme slug: ${slug}`);
-  return e;
 }

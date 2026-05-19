@@ -134,7 +134,8 @@ export function AdminThemesClient() {
     <main style={{ fontFamily: "system-ui, sans-serif", maxWidth: 720, margin: "0 auto", padding: 24 }}>
       <h1 style={{ marginBottom: 4 }}>Moona 테마 운영</h1>
       <p style={{ color: "#555", marginTop: 0 }}>
-        이번 달 무료/프리미엄 테마와 월 무료 장수를 바꿉니다. 앱 스토어 재배포 없이 반영돼요.
+        이번 달 무료/프리미엄 테마와 월 무료 장수를 바꿉니다. 앱 스토어 재배포 없이 반영돼요.{" "}
+        <a href="/admin/catalog">원격 테마 추가</a>
       </p>
 
       <section style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 20 }}>

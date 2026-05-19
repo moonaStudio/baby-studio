@@ -1,10 +1,13 @@
 import { CONFIG } from "../constants/config";
+import type { RemoteThemeDto } from "../utils/remoteThemeToTemplate";
+import { fetchWithTimeout } from "../utils/withTimeout";
 
 export type ThemePromotionsPayload = {
   month: string;
   monthlyFreeLimit: number;
   premiumBySlug: Record<string, boolean>;
   overrideSlugs?: string[];
+  remoteThemes?: RemoteThemeDto[];
 };
 
 export async function fetchThemePromotions(month?: string): Promise<ThemePromotionsPayload | null> {
@@ -13,7 +16,7 @@ export async function fetchThemePromotions(month?: string): Promise<ThemePromoti
   }
   const base = CONFIG.BACKEND_URL.replace(/\/$/, "");
   const q = month ? `?month=${encodeURIComponent(month)}` : "";
-  const res = await fetch(`${base}/api/themes/promotions${q}`);
+  const res = await fetchWithTimeout(`${base}/api/themes/promotions${q}`, undefined, 10_000);
   if (!res.ok) {
     return null;
   }
@@ -21,5 +24,11 @@ export async function fetchThemePromotions(month?: string): Promise<ThemePromoti
   if (!j.month || typeof j.monthlyFreeLimit !== "number" || !j.premiumBySlug) {
     return null;
   }
-  return j;
+  return {
+    month: j.month,
+    monthlyFreeLimit: j.monthlyFreeLimit,
+    premiumBySlug: j.premiumBySlug,
+    overrideSlugs: j.overrideSlugs,
+    remoteThemes: Array.isArray(j.remoteThemes) ? j.remoteThemes : []
+  };
 }

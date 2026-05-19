@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import sharp from "sharp";
-import { existsSync, readdirSync, statSync } from "node:fs";
-import { access } from "node:fs/promises";
-import path from "node:path";
 import { refineImageWithOpenAiEdits } from "../../lib/openaiImageEdit";
+import {
+  applyGenderToFaceSlotTemplate,
+  readThemeBackground,
+  resolveFaceSlotTemplate,
+  type FaceSlotTemplate
+} from "../../lib/faceSlotTemplate";
 
 export type ProcessProviderId = "openai-edit";
 
@@ -61,17 +64,6 @@ function normalizeProvider(value: unknown): ProcessProviderId {
   return "openai-edit";
 }
 
-function applyGenderToFaceSlotTemplate(
-  template: FaceSlotTemplate,
-  gender?: string
-): FaceSlotTemplate {
-  if (template.slug === "100-days-hanbok-boy") return template;
-  if (template.slug !== "100-days-hanbok") return template;
-  const g = gender?.toLowerCase().trim();
-  if (g === "boy") return { ...template, backgroundFile: "100-days-boy.png" };
-  return { ...template, backgroundFile: "100-days-girl.png" };
-}
-
 type Template = {
   slug: string;
   backgroundUrl: string;
@@ -85,13 +77,6 @@ type Template = {
   saturation?: number;
 };
 
-type FaceSlotTemplate = {
-  slug: string;
-  backgroundFile: string;
-  faceSlot: { x: number; y: number; width: number; height: number; feather: number };
-  colorProfile: "warm" | "cool" | "neutral";
-};
-
 const DEFAULT_TEMPLATE: Template = {
   slug: "teddy-bear-classic",
   backgroundUrl: "https://cdn.example.com/themes/teddy-bear-classic.jpg",
@@ -103,133 +88,6 @@ const DEFAULT_TEMPLATE: Template = {
   brightness: 1,
   saturation: 1
 };
-
-const DEFAULT_FACE_SLOT: FaceSlotTemplate["faceSlot"] = {
-  x: 0.5,
-  y: 0.4,
-  width: 0.22,
-  height: 0.28,
-  feather: 0.1
-};
-
-/** Per-slug tuning; any slug with a resolvable theme file uses DEFAULT_FACE_SLOT unless listed here. */
-const FACE_SLOT_TUNING: Partial<
-  Record<string, Pick<FaceSlotTemplate, "faceSlot" | "colorProfile">>
-> = {
-  "100-days-teddy-bears": {
-    faceSlot: { x: 0.5, y: 0.46, width: 0.19, height: 0.24, feather: 0.12 },
-    colorProfile: "warm"
-  },
-  "100-days-ice-cream": {
-    faceSlot: { x: 0.5, y: 0.41, width: 0.2, height: 0.28, feather: 0.1 },
-    colorProfile: "cool"
-  },
-  "100-days-hanbok": {
-    faceSlot: { x: 0.5, y: 0.46, width: 0.17, height: 0.22, feather: 0.1 },
-    colorProfile: "neutral"
-  },
-  "100-days-hanbok-boy": {
-    faceSlot: { x: 0.5, y: 0.46, width: 0.17, height: 0.22, feather: 0.1 },
-    colorProfile: "neutral"
-  },
-  "horse-plush-newborn": {
-    faceSlot: { x: 0.5, y: 0.39, width: 0.2, height: 0.24, feather: 0.08 },
-    colorProfile: "warm"
-  },
-  "horse-zodiac-newborn": {
-    faceSlot: { x: 0.5, y: 0.39, width: 0.2, height: 0.24, feather: 0.08 },
-    colorProfile: "warm"
-  },
-  "newborn-horse": {
-    faceSlot: { x: 0.5, y: 0.39, width: 0.2, height: 0.24, feather: 0.08 },
-    colorProfile: "warm"
-  },
-  "first-birthday-girl": {
-    faceSlot: { x: 0.5, y: 0.4, width: 0.22, height: 0.28, feather: 0.1 },
-    colorProfile: "warm"
-  },
-  "first-birthday-boy": {
-    faceSlot: { x: 0.5, y: 0.4, width: 0.22, height: 0.28, feather: 0.1 },
-    colorProfile: "warm"
-  }
-};
-
-function getThemesAssetsRoot(): string {
-  return path.resolve(process.cwd(), "../assets/themes");
-}
-
-let cachedThemeSubdirs: string[] | undefined;
-
-function listThemeAssetSubdirs(): string[] {
-  if (cachedThemeSubdirs !== undefined) return cachedThemeSubdirs;
-  const root = getThemesAssetsRoot();
-  try {
-    const found = readdirSync(root)
-      .filter((name) => !name.startsWith("."))
-      .filter((name) => statSync(path.join(root, name)).isDirectory())
-      .sort();
-    cachedThemeSubdirs = found.length ? found : ["100day", "newborn", "months", "birthday", "horse"];
-  } catch {
-    cachedThemeSubdirs = ["100day", "newborn", "months", "birthday", "horse"];
-  }
-  return cachedThemeSubdirs;
-}
-
-function themeFileExistsInSubdir(fileName: string): boolean {
-  const root = getThemesAssetsRoot();
-  for (const dir of listThemeAssetSubdirs()) {
-    if (existsSync(path.join(root, dir, fileName))) return true;
-  }
-  return false;
-}
-
-/** Ordered background filenames to try for a theme slug (first match on disk wins). */
-function resolveBackgroundFileCandidates(slug: string): string[] {
-  if (slug === "100-days-hanbok-boy") return ["100-days-boy.png"];
-  if (slug === "100-days-hanbok") return ["100-days-girl.png"];
-  if (slug === "month-01-milestone") return ["month-01-preview-both.png"];
-  const girl = slug.match(/^month-(\d{2})-milestone-girl$/);
-  if (girl) return [`month-${girl[1]}-preview.png`];
-  const boy = slug.match(/^month-(\d{2})-milestone-boy$/);
-  if (boy) return [`month-${boy[1]}-preview-boy.png`];
-  if (slug === "first-birthday-girl") return ["first-birthday-girl-preview.png"];
-  if (slug === "first-birthday-boy") return ["first-birthday-boy-preview.png"];
-  if (slug === "horse-zodiac-newborn") return ["red-horse-zodiac.png", "newborn-horse.png"];
-  if (slug === "horse-plush-newborn" || slug === "newborn-horse") return ["newborn-horse.png"];
-  if (slug === "100-days-teddy-bears") return ["100-days-teddy-bears.png"];
-  if (slug === "100-days-ice-cream") return ["100-days-ice-cream.png"];
-  return [`${slug}.png`, `${slug}.jpg`];
-}
-
-function tuningKeyForResolvedFile(slug: string, backgroundFile: string): string {
-  return slug;
-}
-
-function getFaceSlotTemplate(slug: string): FaceSlotTemplate | undefined {
-  const candidates = resolveBackgroundFileCandidates(slug);
-  const backgroundFile = candidates.find(themeFileExistsInSubdir);
-  if (!backgroundFile) return undefined;
-
-  const tuneKey = tuningKeyForResolvedFile(slug, backgroundFile);
-  const tuning = FACE_SLOT_TUNING[tuneKey] ?? FACE_SLOT_TUNING[slug];
-  const faceSlot = tuning?.faceSlot ?? DEFAULT_FACE_SLOT;
-  const colorProfile = tuning?.colorProfile ?? "neutral";
-  return { slug, backgroundFile, faceSlot, colorProfile };
-}
-
-async function readThemeAsset(fileName: string): Promise<Buffer> {
-  const fromBackendCwd = getThemesAssetsRoot();
-  const candidates = listThemeAssetSubdirs().map((dir) => path.join(fromBackendCwd, dir, fileName));
-  for (const candidate of candidates) {
-    try {
-      await access(candidate);
-      return sharp(candidate).toBuffer();
-    } catch {
-      // continue
-    }
-  }
-  throw new Error(`Theme asset not found for ${fileName}`);
-}
 
 type Matrix3x3 = [
   [number, number, number],
@@ -397,7 +255,7 @@ async function buildFaceSlotLocalComposite(
   sourceBuffer: Buffer,
   template: FaceSlotTemplate
 ): Promise<{ output: Buffer; width: number; height: number }> {
-  const backgroundBuffer = await readThemeAsset(template.backgroundFile);
+  const backgroundBuffer = await readThemeBackground(template);
   const bgMeta = await sharp(backgroundBuffer).metadata();
   const canvasWidth = bgMeta.width ?? 1536;
   const canvasHeight = bgMeta.height ?? 1024;
@@ -428,7 +286,7 @@ async function runFaceSlotProcessing(
   height: number;
   fallbackReason?: string;
 }> {
-  const themeBuffer = await readThemeAsset(template.backgroundFile);
+  const themeBuffer = await readThemeBackground(template);
   const themeMeta = await sharp(themeBuffer).metadata();
   const tw = themeMeta.width ?? 1536;
   const th = themeMeta.height ?? 1024;
@@ -493,6 +351,9 @@ export async function POST(req: NextRequest) {
     variantForLog = variant;
     requestedProvider = normalizeProvider(providerRaw);
 
+    const faceSlotResolved = themeSlug ? await resolveFaceSlotTemplate(themeSlug) : undefined;
+    const usedFaceSlotEarly = !!faceSlotResolved;
+
     if (!themeSlug) {
       const err: ProcessErrorJson = {
         success: false,
@@ -533,7 +394,7 @@ export async function POST(req: NextRequest) {
           error: "Invalid imageDataUrl",
           message: msg,
           processingTimeMs: Date.now() - startedAt,
-          usedFaceSlot: !!getFaceSlotTemplate(themeSlug),
+          usedFaceSlot: usedFaceSlotEarly,
           themeSlug
         };
         return NextResponse.json(err, { status: 400 });
@@ -547,7 +408,7 @@ export async function POST(req: NextRequest) {
           error: "Unable to fetch source image",
           message: "Unable to fetch source image",
           processingTimeMs: Date.now() - startedAt,
-          usedFaceSlot: !!getFaceSlotTemplate(themeSlug),
+          usedFaceSlot: usedFaceSlotEarly,
           themeSlug
         };
         return NextResponse.json(err, { status: 400 });
@@ -561,7 +422,7 @@ export async function POST(req: NextRequest) {
         error: "Source image buffer is empty. Please choose another image.",
         message: "Source image buffer is empty. Please choose another image.",
         processingTimeMs: Date.now() - startedAt,
-        usedFaceSlot: !!getFaceSlotTemplate(themeSlug),
+        usedFaceSlot: usedFaceSlotEarly,
         themeSlug
       };
       return NextResponse.json(err, { status: 400 });
@@ -575,15 +436,14 @@ export async function POST(req: NextRequest) {
         error: "Face not detected / invalid image",
         message: "Face not detected / invalid image",
         processingTimeMs: Date.now() - startedAt,
-        usedFaceSlot: !!getFaceSlotTemplate(themeSlug),
+        usedFaceSlot: usedFaceSlotEarly,
         themeSlug
       };
       return NextResponse.json(err, { status: 422 });
     }
 
-    const baseFaceSlot = getFaceSlotTemplate(themeSlug);
-    const faceSlotTemplate = baseFaceSlot
-      ? applyGenderToFaceSlotTemplate(baseFaceSlot, gender)
+    const faceSlotTemplate = faceSlotResolved
+      ? applyGenderToFaceSlotTemplate(faceSlotResolved, gender)
       : undefined;
     const usedFaceSlot = !!faceSlotTemplate;
 
@@ -648,7 +508,7 @@ export async function POST(req: NextRequest) {
         provider: requestedProvider,
         gender: genderForLog ?? null,
         variant: variantForLog ?? null,
-        usedFaceSlot: !!getFaceSlotTemplate(themeSlugForLog),
+        usedFaceSlot: false,
         durationMs: processingTimeMs,
         error: msg
       })
@@ -660,7 +520,7 @@ export async function POST(req: NextRequest) {
       error: msg,
       message: msg,
       processingTimeMs,
-      usedFaceSlot: !!getFaceSlotTemplate(themeSlugForLog),
+      usedFaceSlot: false,
       themeSlug: themeSlugForLog,
       gender: genderForLog,
       variant: variantForLog,

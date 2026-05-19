@@ -8,6 +8,9 @@ export default function AdminHomePage() {
         <li>
           <Link href="/admin/themes">테마 · 월 무료 설정</Link>
         </li>
+        <li>
+          <Link href="/admin/catalog">원격 테마 추가·수정</Link>
+        </li>
       </ul>
     </main>
   );

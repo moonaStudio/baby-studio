@@ -4,13 +4,24 @@ import { fetchThemePromotions } from "../services/themePromotions";
 import { useAppStore } from "../store";
 import { Template } from "../types";
 import { mergeTemplatesWithPromotions } from "../utils/mergeThemePromotions";
+import { remoteThemeToTemplate } from "../utils/remoteThemeToTemplate";
 
 export function useThemes(): Template[] {
   const themePromotions = useAppStore((s) => s.themePromotions);
-  return useMemo(
-    () => mergeTemplatesWithPromotions(THEME_TEMPLATES, themePromotions ?? null),
-    [themePromotions]
-  );
+  return useMemo(() => {
+    let list = mergeTemplatesWithPromotions(THEME_TEMPLATES, themePromotions ?? null);
+    const remote = themePromotions?.remoteThemes ?? [];
+    const slugs = new Set(list.map((t) => t.slug));
+    const premiumBySlug = themePromotions?.premiumBySlug ?? {};
+    for (const r of remote) {
+      if (slugs.has(r.slug)) continue;
+      const isPremium =
+        typeof premiumBySlug[r.slug] === "boolean" ? premiumBySlug[r.slug] : r.defaultIsPremium;
+      list = [...list, remoteThemeToTemplate(r, isPremium)];
+      slugs.add(r.slug);
+    }
+    return list;
+  }, [themePromotions]);
 }
 
 /** 앱 시작·테마 탭 진입 시 호출 */
@@ -20,7 +31,8 @@ export async function refreshThemePromotionsFromServer(): Promise<void> {
   useAppStore.getState().setThemePromotions({
     month: data.month,
     monthlyFreeLimit: data.monthlyFreeLimit,
-    premiumBySlug: data.premiumBySlug
+    premiumBySlug: data.premiumBySlug,
+    remoteThemes: data.remoteThemes ?? []
   });
 }
 

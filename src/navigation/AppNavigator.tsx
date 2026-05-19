@@ -30,6 +30,10 @@ import { refreshThemePromotionsFromServer } from "../hooks/useThemes";
 import { CONFIG } from "../constants/config";
 import { getCurrentUserId, supabase } from "../services/supabase";
 import { useAppStore } from "../store";
+import { withTimeout } from "../utils/withTimeout";
+
+const AUTH_BOOT_TIMEOUT_MS = 8_000;
+const FORCE_BOOT_MS = 10_000;
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -172,7 +176,13 @@ export function AppNavigator() {
   React.useEffect(() => {
     let cancelled = false;
 
-    getCurrentUserId()
+    const forceBootTimer = setTimeout(() => {
+      if (!cancelled) {
+        setAuthBootstrapped(true);
+      }
+    }, FORCE_BOOT_MS);
+
+    withTimeout(getCurrentUserId(), AUTH_BOOT_TIMEOUT_MS, "auth")
       .then((id) => {
         if (cancelled) return;
         setUserId(id);
@@ -194,6 +204,7 @@ export function AppNavigator() {
         }
       })
       .finally(() => {
+        clearTimeout(forceBootTimer);
         if (!cancelled) {
           setAuthBootstrapped(true);
         }

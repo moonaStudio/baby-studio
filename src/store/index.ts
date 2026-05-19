@@ -2,6 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { CreateMode, SavedPhoto, Template } from "../types";
+import type { RemoteThemeDto } from "../utils/remoteThemeToTemplate";
 
 type AppState = {
   userId?: string;
@@ -19,7 +20,12 @@ type AppState = {
   /** 서버 `app_config.monthly_free_limit` (없으면 CONFIG 기본값) */
   monthlyFreeLimit?: number;
   /** 서버 `/api/themes/promotions` 스냅샷 */
-  themePromotions?: { month: string; monthlyFreeLimit: number; premiumBySlug: Record<string, boolean> };
+  themePromotions?: {
+    month: string;
+    monthlyFreeLimit: number;
+    premiumBySlug: Record<string, boolean>;
+    remoteThemes?: RemoteThemeDto[];
+  };
   setUserId: (id?: string) => void;
   setPhotoCredits: (n: number) => void;
   setPremium: (v: boolean) => void;

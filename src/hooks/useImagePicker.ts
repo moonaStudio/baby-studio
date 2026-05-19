@@ -5,7 +5,8 @@ import * as ImagePicker from "expo-image-picker";
 export function useImagePicker() {
   const [imageUri, setImageUri] = useState<string>();
 
-  const pickImage = async () => {
+  /** @returns true if user picked a photo */
+  const pickImage = async (): Promise<boolean> => {
     const existing = await ImagePicker.getMediaLibraryPermissionsAsync();
     let { granted } = existing;
     if (!granted) {
@@ -21,7 +22,7 @@ export function useImagePicker() {
           { text: "Open Settings", onPress: () => Linking.openSettings() }
         ]
       );
-      return;
+      return false;
     }
 
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -36,8 +37,9 @@ export function useImagePicker() {
         : {})
     });
 
-    if (result.canceled || !result.assets?.[0]?.uri) return;
+    if (result.canceled || !result.assets?.[0]?.uri) return false;
     setImageUri(result.assets[0].uri);
+    return true;
   };
 
   const clearLocalImage = () => setImageUri(undefined);
