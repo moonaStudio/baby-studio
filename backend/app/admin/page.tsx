@@ -11,6 +11,9 @@ export default function AdminHomePage() {
         <li>
           <Link href="/admin/catalog">원격 테마 추가·수정</Link>
         </li>
+        <li>
+          <Link href="/admin/credits">크레딧 · 이벤트 (수동/코드)</Link>
+        </li>
       </ul>
     </main>
   );

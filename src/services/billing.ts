@@ -21,6 +21,11 @@ function consumeCreditUrl(): string {
   return `${base}/api/billing/consume-credit`;
 }
 
+function redeemPromoUrl(): string {
+  const base = CONFIG.BACKEND_URL.replace(/\/$/, "");
+  return `${base}/api/billing/redeem-promo`;
+}
+
 export async function fetchPhotoCredits(accessToken: string): Promise<number> {
   const res = await fetch(creditsUrl(), {
     headers: { Authorization: `Bearer ${accessToken}` }
@@ -33,6 +38,7 @@ export async function fetchPhotoCredits(accessToken: string): Promise<number> {
   return typeof j.credits === "number" ? j.credits : 0;
 }
 
+/** @deprecated 스토어 앱에서는 RevenueCat 사용. 웹/레거시 전용. */
 export async function createCheckoutSession(
   packId: string,
   accessToken: string,
@@ -119,6 +125,29 @@ export async function refreshMonthlyFreeForSession(): Promise<{ used: number; mo
     return null;
   }
   return fetchMonthlyFreeUsage(session.access_token);
+}
+
+export async function redeemPromoCode(accessToken: string, code: string): Promise<{ creditsAdded: number; credits: number }> {
+  const res = await fetch(redeemPromoUrl(), {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ code: code.trim() })
+  });
+  const j = (await res.json().catch(() => ({}))) as {
+    creditsAdded?: number;
+    credits?: number;
+    error?: string;
+  };
+  if (!res.ok) {
+    throw new Error(j.error ?? `코드 적용 실패 (${res.status})`);
+  }
+  return {
+    creditsAdded: j.creditsAdded ?? 0,
+    credits: j.credits ?? 0
+  };
 }
 
 /** Supabase 세션이 있을 때만 서버에서 크레딧을 가져옵니다. (SKIP_AUTH 로컬 모드에서는 null) */

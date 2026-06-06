@@ -6,7 +6,7 @@ import type { RemoteThemeDto } from "../utils/remoteThemeToTemplate";
 
 type AppState = {
   userId?: string;
-  /** Stripe로 구매한 사진 크레딧(장). 서버 `user_credits`와 동기화 */
+  /** 인앱 결제로 구매한 사진 크레딧(장). 서버 `user_credits`와 동기화 */
   photoCredits: number;
   isPremium: boolean;
   selectedTheme?: Template;
@@ -26,6 +26,8 @@ type AppState = {
     premiumBySlug: Record<string, boolean>;
     remoteThemes?: RemoteThemeDto[];
   };
+  /** 딥링크 babystudio://promo?code=… 보관 */
+  pendingPromoCode?: string;
   setUserId: (id?: string) => void;
   setPhotoCredits: (n: number) => void;
   setPremium: (v: boolean) => void;
@@ -39,6 +41,7 @@ type AppState = {
   setMonthlyFreeUsed: (n: number) => void;
   setMonthlyFreeLimit: (n?: number) => void;
   setThemePromotions: (p?: AppState["themePromotions"]) => void;
+  setPendingPromoCode: (code?: string) => void;
 };
 
 export const useAppStore = create<AppState>()(
@@ -51,6 +54,7 @@ export const useAppStore = create<AppState>()(
       monthlyFreeUsed: 0,
       monthlyFreeLimit: undefined,
       themePromotions: undefined,
+      pendingPromoCode: undefined,
       setUserId: (userId) => set({ userId }),
       setPhotoCredits: (photoCredits) => set({ photoCredits }),
       setPremium: (isPremium) => set({ isPremium }),
@@ -80,7 +84,8 @@ export const useAppStore = create<AppState>()(
         set({
           themePromotions,
           monthlyFreeLimit: themePromotions?.monthlyFreeLimit
-        })
+        }),
+      setPendingPromoCode: (pendingPromoCode) => set({ pendingPromoCode })
     }),
     {
       name: "moona-studio-app",

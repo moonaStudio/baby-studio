@@ -15,6 +15,8 @@ export const CONFIG = {
   SUPABASE_ANON_KEY: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? "",
   BACKEND_URL: process.env.EXPO_PUBLIC_BACKEND_URL ?? "",
   REVENUECAT_API_KEY: process.env.EXPO_PUBLIC_REVENUECAT_API_KEY ?? "",
+  REVENUECAT_API_KEY_IOS: process.env.EXPO_PUBLIC_REVENUECAT_API_KEY_IOS ?? "",
+  REVENUECAT_API_KEY_ANDROID: process.env.EXPO_PUBLIC_REVENUECAT_API_KEY_ANDROID ?? "",
   FREE_THEME_LIMIT: 2,
   FREE_MONTHLY_LIMIT: 5,
   /** Face-slot + remove.bg + Replicate or OpenAI can exceed 1–3 minutes. */

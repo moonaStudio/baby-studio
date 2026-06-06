@@ -1,6 +1,6 @@
 import React from "react";
 import { ActivityIndicator, Pressable, ScrollView, View } from "react-native";
-import { Button, Card, Divider, Snackbar, Text } from "react-native-paper";
+import { Button, Card, Divider, Snackbar, Text, TextInput } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import {
   getCurrentUserAuthProviders,
@@ -10,6 +10,8 @@ import {
   signOutUser
 } from "../../services/supabase";
 import { CONFIG } from "../../constants/config";
+import { redeemPromoCode } from "../../services/billing";
+import { supabase } from "../../services/supabase";
 import { useAppStore } from "../../store";
 
 const BG = "#FFF9FD";
@@ -27,6 +29,9 @@ export function SettingsScreen({ navigation }: any) {
   const photoCredits = useAppStore((s) => s.photoCredits);
   const isPremium = useAppStore((s) => s.isPremium);
   const setUserId = useAppStore((s) => s.setUserId);
+  const setPhotoCredits = useAppStore((s) => s.setPhotoCredits);
+  const [promoCode, setPromoCode] = React.useState("");
+  const [promoBusy, setPromoBusy] = React.useState(false);
   const [email, setEmail] = React.useState<string>();
   const [authProviders, setAuthProviders] = React.useState<string[]>([]);
   const [emailLoading, setEmailLoading] = React.useState(false);
@@ -36,13 +41,51 @@ export function SettingsScreen({ navigation }: any) {
   });
   const [busy, setBusy] = React.useState<"google" | "signout" | "reset" | null>(null);
 
-  const showSnack = (message: string) => setSnack({ visible: true, message });
-
   const isLocalOrDevUser =
     !!userId && (userId.startsWith("local-") || userId === CONFIG.DEV_SKIP_USER_ID);
   const isLoggedIn = Boolean(userId);
   const hasEmailPasswordLogin = authProviders.includes("email");
   const hasGoogleLogin = authProviders.includes("google");
+
+  const showSnack = (message: string) => setSnack({ visible: true, message });
+
+  const applyPromoCode = React.useCallback(
+    async (rawCode: string) => {
+      const code = rawCode.trim();
+      if (!code) return;
+      if (CONFIG.SKIP_AUTH_FOR_DEV || isLocalOrDevUser) {
+        showSnack("로그인 후에만 이벤트 코드를 쓸 수 있어요.");
+        return;
+      }
+      const {
+        data: { session }
+      } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        showSnack("로그인이 필요해요.");
+        return;
+      }
+      setPromoBusy(true);
+      try {
+        const result = await redeemPromoCode(session.access_token, code);
+        setPhotoCredits(result.credits);
+        setPromoCode("");
+        showSnack(`이벤트 코드 적용! +${result.creditsAdded}장 (보유 ${result.credits}장)`);
+      } catch (e) {
+        showSnack(e instanceof Error ? e.message : "코드를 적용하지 못했어요.");
+      } finally {
+        setPromoBusy(false);
+      }
+    },
+    [isLocalOrDevUser, setPhotoCredits]
+  );
+
+  React.useEffect(() => {
+    const pending = useAppStore.getState().pendingPromoCode;
+    if (pending && isLoggedIn && !isLocalOrDevUser) {
+      useAppStore.getState().setPendingPromoCode(undefined);
+      void applyPromoCode(pending);
+    }
+  }, [isLoggedIn, isLocalOrDevUser, applyPromoCode]);
 
   React.useEffect(() => {
     if (!isLoggedIn) {
@@ -164,6 +207,36 @@ export function SettingsScreen({ navigation }: any) {
             ) : null}
           </Card.Content>
         </Card>
+
+        {isLoggedIn && !isLocalOrDevUser ? (
+          <Card style={CARD} mode="elevated" elevation={0}>
+            <Card.Content style={{ gap: 10 }}>
+              <Text variant="titleMedium" style={{ color: INK }}>
+                이벤트 코드
+              </Text>
+              <Text variant="bodySmall" style={{ color: INK_MUTED, lineHeight: 20 }}>
+                인스타 이벤트 코드가 있으면 입력하세요. 스토리 @moonas는 DM 후 수동 지급돼요.
+              </Text>
+              <TextInput
+                mode="outlined"
+                label="코드"
+                value={promoCode}
+                autoCapitalize="characters"
+                onChangeText={setPromoCode}
+                style={{ backgroundColor: "#FFF" }}
+              />
+              <Button
+                mode="contained"
+                style={BTN}
+                loading={promoBusy}
+                disabled={promoBusy || !promoCode.trim()}
+                onPress={() => void applyPromoCode(promoCode)}
+              >
+                코드 적용
+              </Button>
+            </Card.Content>
+          </Card>
+        ) : null}
 
         <Card style={CARD} mode="elevated" elevation={0}>
           <Card.Content style={{ gap: 10 }}>

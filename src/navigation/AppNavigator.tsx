@@ -23,9 +23,9 @@ import { ThemeSelectScreen } from "../screens/Create/ThemeSelectScreen";
 import { UploadScreen } from "../screens/Upload/UploadScreen";
 import { ThemesScreen } from "../screens/Themes/ThemesScreen";
 import { GenderSelectScreen } from "../screens/Create/GenderSelectScreen";
-import * as Linking from "expo-linking";
-import * as WebBrowser from "expo-web-browser";
 import { refreshMonthlyFreeForSession, refreshPhotoCreditsForSession } from "../services/billing";
+import { configurePurchasesForUser, logoutPurchases } from "../services/purchases";
+import * as Linking from "expo-linking";
 import { refreshThemePromotionsFromServer } from "../hooks/useThemes";
 import { CONFIG } from "../constants/config";
 import { getCurrentUserId, supabase } from "../services/supabase";
@@ -193,6 +193,7 @@ export function AppNavigator() {
         }
         void syncThemePromotions();
         if (id && !CONFIG.SKIP_AUTH_FOR_DEV) {
+          void configurePurchasesForUser(id);
           void syncCredits();
           void syncMonthlyFree();
         }
@@ -217,6 +218,7 @@ export function AppNavigator() {
       if (event === "TOKEN_REFRESHED" || event === "USER_UPDATED") {
         if (session?.user?.id) {
           setUserId(session.user.id);
+          void configurePurchasesForUser(session.user.id);
           void syncCredits();
           void syncMonthlyFree();
           void syncThemePromotions();
@@ -225,6 +227,7 @@ export function AppNavigator() {
       }
       if (session?.user?.id) {
         setUserId(session.user.id);
+        void configurePurchasesForUser(session.user.id);
         void syncCredits();
         void syncMonthlyFree();
         void syncThemePromotions();
@@ -235,6 +238,7 @@ export function AppNavigator() {
         setUserId(undefined);
         setPhotoCredits(0);
         setMonthlyFreeUsed(0);
+        void logoutPurchases();
         if (event === "SIGNED_OUT") {
           resetTo("Login");
         }
@@ -248,22 +252,34 @@ export function AppNavigator() {
   }, [setUserId, setPhotoCredits, setMonthlyFreeUsed, syncCredits, syncMonthlyFree, syncThemePromotions]);
 
   React.useEffect(() => {
-    const handleUrl = (url: string | null) => {
+    const handlePromoUrl = (url: string | null) => {
       if (!url) return;
-      if (url.includes("billing/success")) {
-        try {
-          void WebBrowser.dismissBrowser();
-        } catch {
-          // no in-app browser open
+      try {
+        const parsed = Linking.parse(url);
+        const code =
+          (typeof parsed.queryParams?.code === "string" ? parsed.queryParams.code : null) ??
+          (parsed.path?.includes("promo") && typeof parsed.queryParams?.code === "string"
+            ? parsed.queryParams.code
+            : null);
+        if (!code && url.includes("promo")) {
+          const match = url.match(/[?&]code=([^&]+)/i);
+          if (match?.[1]) {
+            useAppStore.getState().setPendingPromoCode(decodeURIComponent(match[1]));
+            return;
+          }
         }
-        void syncCredits();
+        if (code) {
+          useAppStore.getState().setPendingPromoCode(decodeURIComponent(code));
+        }
+      } catch {
+        // ignore malformed urls
       }
     };
 
-    Linking.getInitialURL().then(handleUrl);
-    const sub = Linking.addEventListener("url", ({ url }) => handleUrl(url));
+    Linking.getInitialURL().then(handlePromoUrl);
+    const sub = Linking.addEventListener("url", ({ url }) => handlePromoUrl(url));
     return () => sub.remove();
-  }, [syncCredits]);
+  }, []);
 
   if (!authBootstrapped) {
     return (
