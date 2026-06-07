@@ -14,6 +14,9 @@ export default function AdminHomePage() {
         <li>
           <Link href="/admin/credits">크레딧 · 이벤트 (수동/코드)</Link>
         </li>
+        <li>
+          <Link href="/admin/users">가입자 목록 (이메일)</Link>
+        </li>
       </ul>
     </main>
   );

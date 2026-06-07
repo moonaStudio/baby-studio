@@ -1,6 +1,8 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 
 const STORAGE_KEY = "moona_admin_key";
 
@@ -26,6 +28,7 @@ type PromoCode = {
 };
 
 export function AdminCreditsClient() {
+  const searchParams = useSearchParams();
   const [adminKey, setAdminKey] = React.useState("");
   const [message, setMessage] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
@@ -46,7 +49,9 @@ export function AdminCreditsClient() {
   React.useEffect(() => {
     const saved = typeof window !== "undefined" ? sessionStorage.getItem(STORAGE_KEY) : null;
     if (saved) setAdminKey(saved);
-  }, []);
+    const prefill = searchParams.get("email");
+    if (prefill) setEmail(prefill);
+  }, [searchParams]);
 
   const headers = React.useMemo(
     () => ({ "Content-Type": "application/json", "x-admin-key": adminKey.trim() }),
@@ -165,6 +170,11 @@ export function AdminCreditsClient() {
 
   return (
     <main style={{ fontFamily: "system-ui, sans-serif", padding: 24, maxWidth: 720 }}>
+      <p>
+        <Link href="/admin">← 운영 홈</Link>
+        {" · "}
+        <Link href="/admin/users">가입자 목록</Link>
+      </p>
       <h1>크레딧 · 이벤트</h1>
       <p style={{ color: "#555", lineHeight: 1.5 }}>
         인스타 스토리 @moonas 확인 후 <strong>수동 지급</strong>. 프로모 코드는 유저가 앱에서 입력하면{" "}
