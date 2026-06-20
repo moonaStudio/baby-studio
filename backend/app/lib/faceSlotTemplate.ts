@@ -57,7 +57,40 @@ const FACE_SLOT_TUNING: Partial<Record<string, Pick<FaceSlotTemplate, "faceSlot"
   "first-birthday-boy": {
     faceSlot: { x: 0.5, y: 0.4, width: 0.22, height: 0.28, feather: 0.1 },
     colorProfile: "warm"
+  },
+  "summer-beach-girl": {
+    faceSlot: { x: 0.5, y: 0.42, width: 0.2, height: 0.26, feather: 0.1 },
+    colorProfile: "cool"
+  },
+  "summer-beach-boy": {
+    faceSlot: { x: 0.5, y: 0.42, width: 0.2, height: 0.26, feather: 0.1 },
+    colorProfile: "cool"
+  },
+  "summer-ice-cream-girl": {
+    faceSlot: { x: 0.5, y: 0.41, width: 0.2, height: 0.28, feather: 0.1 },
+    colorProfile: "cool"
+  },
+  "summer-ice-cream-boy": {
+    faceSlot: { x: 0.5, y: 0.41, width: 0.2, height: 0.28, feather: 0.1 },
+    colorProfile: "cool"
+  },
+  "summer-studio-girl": {
+    faceSlot: { x: 0.5, y: 0.4, width: 0.22, height: 0.28, feather: 0.1 },
+    colorProfile: "warm"
+  },
+  "summer-studio-boy": {
+    faceSlot: { x: 0.5, y: 0.4, width: 0.22, height: 0.28, feather: 0.1 },
+    colorProfile: "warm"
   }
+};
+
+const SUMMER_BACKGROUND_FILES: Record<string, string> = {
+  "summer-beach-girl": "SummerBeachGirl.png",
+  "summer-beach-boy": "SummerBeachBoy.png",
+  "summer-ice-cream-girl": "SummerIceCreamGirl.png",
+  "summer-ice-cream-boy": "SummerIceCreamBoy.png",
+  "summer-studio-girl": "SummerStudioGirl.png",
+  "summer-studio-boy": "SummerStudioBoy.png"
 };
 
 function getThemesAssetsRoot(): string {
@@ -74,9 +107,9 @@ function listThemeAssetSubdirs(): string[] {
       .filter((name) => !name.startsWith("."))
       .filter((name) => statSync(path.join(root, name)).isDirectory())
       .sort();
-    cachedThemeSubdirs = found.length ? found : ["100day", "newborn", "months", "birthday", "horse"];
+    cachedThemeSubdirs = found.length ? found : ["100day", "newborn", "summer", "birthday", "horse"];
   } catch {
-    cachedThemeSubdirs = ["100day", "newborn", "months", "birthday", "horse"];
+    cachedThemeSubdirs = ["100day", "newborn", "summer", "birthday", "horse"];
   }
   return cachedThemeSubdirs;
 }
@@ -92,11 +125,8 @@ function themeFileExistsInSubdir(fileName: string): boolean {
 function resolveBackgroundFileCandidates(slug: string): string[] {
   if (slug === "100-days-hanbok-boy") return ["100-days-boy.png"];
   if (slug === "100-days-hanbok") return ["100-days-girl.png"];
-  if (slug === "month-01-milestone") return ["month-01-preview-both.png"];
-  const girl = slug.match(/^month-(\d{2})-milestone-girl$/);
-  if (girl) return [`month-${girl[1]}-preview.png`];
-  const boy = slug.match(/^month-(\d{2})-milestone-boy$/);
-  if (boy) return [`month-${boy[1]}-preview-boy.png`];
+  const summerFile = SUMMER_BACKGROUND_FILES[slug];
+  if (summerFile) return [summerFile];
   if (slug === "first-birthday-girl") return ["first-birthday-girl-preview.png"];
   if (slug === "first-birthday-boy") return ["first-birthday-boy-preview.png"];
   if (slug === "horse-zodiac-newborn") return ["red-horse-zodiac.png", "newborn-horse.png"];

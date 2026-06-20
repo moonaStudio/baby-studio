@@ -6,7 +6,7 @@ export interface Template {
   slug: string;
   backgroundUrl: string;
   isPremium: boolean;
-  category?: "free" | "newborn" | "monthly" | "months" | "birthday" | "100day" | "horse" | "other";
+  category?: "free" | "newborn" | "summer" | "birthday" | "100day" | "horse" | "other";
   gender?: "girl" | "boy" | "unisex";
   previewImage?: any;
   babyPosition: { x: number; y: number; width: number; height: number };

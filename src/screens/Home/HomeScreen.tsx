@@ -17,11 +17,6 @@ const EXAMPLE_PAIRS = [
 ] as const;
 
 function homeFreeThemeLabel(theme: Template): string {
-  const monthGirl = theme.slug.match(/^month-(\d{2})-milestone-girl$/);
-  if (monthGirl) return `${parseInt(monthGirl[1], 10)}월 여아 아기 테마`;
-  const monthBoy = theme.slug.match(/^month-(\d{2})-milestone-boy$/);
-  if (monthBoy) return `${parseInt(monthBoy[1], 10)}월 남아 아기 테마`;
-  if (theme.slug === "month-01-milestone") return "1월 아기 테마";
   if (theme.slug === "100-days-hanbok") return "100일 한복 여아 테마";
   if (theme.slug === "100-days-hanbok-boy") return "100일 한복 남아 테마";
   return `${theme.name} 테마`;

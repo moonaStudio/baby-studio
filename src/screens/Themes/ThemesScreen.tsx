@@ -14,13 +14,13 @@ import {
 } from "../../constants/monthlyFreeQuota";
 import { Template } from "../../types";
 
-type ThemeFilter = "all" | "free" | "newborn" | "months" | "birthday" | "100day" | "horse";
+type ThemeFilter = "all" | "free" | "newborn" | "summer" | "birthday" | "100day" | "horse";
 
 const FILTER_LABELS: Record<ThemeFilter, string> = {
   all: "전체 카테고리",
   free: "무료",
   newborn: "신생아",
-  months: "월별",
+  summer: "여름",
   birthday: "돌사진",
   "100day": "100일",
   horse: "말띠"
