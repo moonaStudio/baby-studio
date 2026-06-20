@@ -1,4 +1,4 @@
-package com.anonymous.babystudio
+package com.moonastudio.app
 
 import android.os.Build
 import android.os.Bundle

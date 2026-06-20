@@ -2,7 +2,7 @@
   "expo": {
     "name": "Moona Studio",
     "slug": "baby-studio",
-    "version": "1.0.0",
+    "version": "1.0.2",
     "orientation": "portrait",
     "scheme": "babystudio",
     "platforms": [
@@ -31,7 +31,7 @@
     ],
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.anonymous.babystudio"
+      "bundleIdentifier": "com.moonastudio.app"
     },
     "android": {
       "permissions": [
@@ -44,7 +44,7 @@
         "android.permission.READ_MEDIA_VIDEO",
         "android.permission.READ_MEDIA_AUDIO"
       ],
-      "package": "com.anonymous.babystudio"
+      "package": "com.moonastudio.app"
     }
   }
 }

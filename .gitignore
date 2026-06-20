@@ -27,6 +27,9 @@ web-build/
 .vscode/
 
 # Native
+android/local.properties
+android/keystore.properties
+android/app/moona-upload.keystore
 *.jks
 *.p8
 *.p12

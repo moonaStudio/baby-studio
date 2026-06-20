@@ -203,7 +203,7 @@ export function AdminCatalogClient() {
             <input
               value={form.category}
               onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
-              placeholder="months, 100day, newborn…"
+              placeholder="summer, 100day, newborn…"
               style={{ display: "block", width: "100%", marginTop: 4, padding: 8 }}
             />
           </label>

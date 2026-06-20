@@ -28,7 +28,7 @@
         <key>CFBundleURLSchemes</key>
         <array>
           <string>babystudio</string>
-          <string>com.anonymous.babystudio</string>
+          <string>com.moonastudio.app</string>
         </array>
       </dict>
     </array>
