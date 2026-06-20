@@ -3,7 +3,10 @@ import path from "path";
 
 const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
-    "/api/process": [path.join(__dirname, "../assets/themes/**/*")]
+    "/api/process": [
+      path.join(__dirname, "assets/themes/**/*"),
+      path.join(__dirname, "../assets/themes/**/*")
+    ]
   }
 };
 

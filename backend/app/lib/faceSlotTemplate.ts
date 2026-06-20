@@ -93,31 +93,43 @@ const SUMMER_BACKGROUND_FILES: Record<string, string> = {
   "summer-studio-boy": "SummerStudioBoy.png"
 };
 
-function getThemesAssetsRoot(): string {
-  return path.resolve(process.cwd(), "../assets/themes");
+function getThemesAssetsRoots(): string[] {
+  const candidates = [
+    path.resolve(process.cwd(), "assets/themes"),
+    path.resolve(process.cwd(), "../assets/themes")
+  ];
+  return [...new Set(candidates.filter((root) => existsSync(root)))];
 }
+
+const FALLBACK_THEME_SUBDIRS = ["100day", "newborn", "summer", "birthday", "horse"];
 
 let cachedThemeSubdirs: string[] | undefined;
 
 function listThemeAssetSubdirs(): string[] {
   if (cachedThemeSubdirs !== undefined) return cachedThemeSubdirs;
-  const root = getThemesAssetsRoot();
-  try {
-    const found = readdirSync(root)
-      .filter((name) => !name.startsWith("."))
-      .filter((name) => statSync(path.join(root, name)).isDirectory())
-      .sort();
-    cachedThemeSubdirs = found.length ? found : ["100day", "newborn", "summer", "birthday", "horse"];
-  } catch {
-    cachedThemeSubdirs = ["100day", "newborn", "summer", "birthday", "horse"];
+  for (const root of getThemesAssetsRoots()) {
+    try {
+      const found = readdirSync(root)
+        .filter((name) => !name.startsWith("."))
+        .filter((name) => statSync(path.join(root, name)).isDirectory())
+        .sort();
+      if (found.length) {
+        cachedThemeSubdirs = found;
+        return cachedThemeSubdirs;
+      }
+    } catch {
+      // try next root
+    }
   }
+  cachedThemeSubdirs = FALLBACK_THEME_SUBDIRS;
   return cachedThemeSubdirs;
 }
 
 function themeFileExistsInSubdir(fileName: string): boolean {
-  const root = getThemesAssetsRoot();
-  for (const dir of listThemeAssetSubdirs()) {
-    if (existsSync(path.join(root, dir, fileName))) return true;
+  for (const root of getThemesAssetsRoots()) {
+    for (const dir of listThemeAssetSubdirs()) {
+      if (existsSync(path.join(root, dir, fileName))) return true;
+    }
   }
   return false;
 }
@@ -137,8 +149,9 @@ function resolveBackgroundFileCandidates(slug: string): string[] {
 }
 
 async function readThemeAssetFile(fileName: string): Promise<Buffer> {
-  const fromBackendCwd = getThemesAssetsRoot();
-  const candidates = listThemeAssetSubdirs().map((dir) => path.join(fromBackendCwd, dir, fileName));
+  const candidates = getThemesAssetsRoots().flatMap((root) =>
+    listThemeAssetSubdirs().map((dir) => path.join(root, dir, fileName))
+  );
   for (const candidate of candidates) {
     try {
       await access(candidate);
