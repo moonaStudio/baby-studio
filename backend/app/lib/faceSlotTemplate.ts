@@ -94,11 +94,10 @@ const SUMMER_BACKGROUND_FILES: Record<string, string> = {
 };
 
 function getThemesAssetsRoots(): string[] {
-  const candidates = [
+  return [
     path.resolve(process.cwd(), "assets/themes"),
     path.resolve(process.cwd(), "../assets/themes")
   ];
-  return [...new Set(candidates.filter((root) => existsSync(root)))];
 }
 
 const FALLBACK_THEME_SUBDIRS = ["100day", "newborn", "summer", "birthday", "horse"];
