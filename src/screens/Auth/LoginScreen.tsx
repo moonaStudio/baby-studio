@@ -1,7 +1,8 @@
 import React, { useState } from "react";
-import { View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { Button, Text, TextInput } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { UI, cardBase, screenPadding } from "../../constants/ui";
 import { signInWithEmail, signInWithOAuth } from "../../services/supabase";
 import { useAppStore } from "../../store";
 
@@ -15,68 +16,108 @@ export function LoginScreen({ navigation }: any) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>();
   const setUserId = useAppStore((s) => s.setUserId);
+
   return (
-    <View style={{ flex: 1, justifyContent: "center", padding: 20, gap: 12 }}>
-      <Text variant="headlineSmall">Moona Studio</Text>
-      <TextInput label="Email" value={email} onChangeText={setEmail} />
-      <TextInput
-        label="Password"
-        value={password}
-        secureTextEntry
-        onChangeText={setPassword}
-      />
-      <Button
-        mode="contained"
-        loading={loading}
-        disabled={loading}
-        onPress={async () => {
-          setLoading(true);
-          setError(undefined);
-          try {
-            const result = await signInWithEmail(email.trim(), password);
-            const uid = result.user?.id;
-            if (!uid) {
-              setError("로그인 정보를 확인할 수 없어요.");
-              return;
+    <View style={styles.screen}>
+      <View style={styles.hero}>
+        <MaterialCommunityIcons name="flower-tulip" size={36} color={UI.primaryDark} />
+        <Text variant="headlineSmall" style={styles.title}>
+          Moona Studio
+        </Text>
+        <Text variant="bodyMedium" style={styles.subtitle}>
+          우리 아기의 소중한 순간을{"\n"}스튜디오 감성으로 남겨 보세요.
+        </Text>
+      </View>
+
+      <View style={styles.form}>
+        <TextInput label="이메일" value={email} onChangeText={setEmail} mode="outlined" />
+        <TextInput
+          label="비밀번호"
+          value={password}
+          secureTextEntry
+          onChangeText={setPassword}
+          mode="outlined"
+        />
+        {error ? <Text style={styles.error}>{error}</Text> : null}
+        <Button
+          mode="contained"
+          loading={loading}
+          disabled={loading}
+          style={styles.btn}
+          contentStyle={styles.btnContent}
+          onPress={async () => {
+            setLoading(true);
+            setError(undefined);
+            try {
+              const result = await signInWithEmail(email.trim(), password);
+              const uid = result.user?.id;
+              if (!uid) {
+                setError("로그인 정보를 확인할 수 없어요.");
+                return;
+              }
+              setUserId(uid);
+              goToMainTabs(navigation);
+            } catch (e: any) {
+              setError(e?.message ?? "로그인에 실패했어요.");
+            } finally {
+              setLoading(false);
             }
-            setUserId(uid);
-            goToMainTabs(navigation);
-          } catch (e: any) {
-            setError(e?.message ?? "로그인에 실패했어요.");
-          } finally {
-            setLoading(false);
-          }
-        }}
-      >
-        이메일 로그인
-      </Button>
-      <Button
-        mode="outlined"
-        disabled={loading}
-        onPress={async () => {
-          setLoading(true);
-          setError(undefined);
-          try {
-            const result = await signInWithOAuth("google");
-            const uid = result?.session?.user?.id;
-            if (!uid) {
-              setError("로그인을 완료하지 않았어요.");
-              return;
+          }}
+        >
+          이메일 로그인
+        </Button>
+        <Button
+          mode="outlined"
+          disabled={loading}
+          style={styles.btn}
+          icon="google"
+          onPress={async () => {
+            setLoading(true);
+            setError(undefined);
+            try {
+              const result = await signInWithOAuth("google");
+              const uid = result.user?.id;
+              if (uid) {
+                setUserId(uid);
+                goToMainTabs(navigation);
+              }
+            } catch (e: any) {
+              setError(e?.message ?? "Google 로그인에 실패했어요.");
+            } finally {
+              setLoading(false);
             }
-            setUserId(uid);
-            goToMainTabs(navigation);
-          } catch (e: any) {
-            setError(e?.message ?? "Google 로그인에 실패했어요.");
-          } finally {
-            setLoading(false);
-          }
-        }}
-        icon={({ size }) => <MaterialCommunityIcons name="google" size={size + 4} color="#4285F4" />}
-      >
-        Google로 계속하기
-      </Button>
-      <Button onPress={() => navigation.navigate("Signup")}>회원가입</Button>
-      {error ? <Text>{error}</Text> : null}
+          }}
+        >
+          Google로 계속하기
+        </Button>
+        <Button mode="text" onPress={() => navigation.navigate("Signup")}>
+          계정 만들기
+        </Button>
+      </View>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+    backgroundColor: UI.bg,
+    padding: screenPadding,
+    justifyContent: "center",
+    gap: 24
+  },
+  hero: {
+    ...cardBase,
+    backgroundColor: UI.primarySoft,
+    borderColor: UI.borderStrong,
+    padding: 24,
+    alignItems: "center",
+    gap: 8
+  },
+  title: { color: UI.ink, fontWeight: "800" },
+  subtitle: { color: UI.inkMuted, textAlign: "center", lineHeight: 22 },
+  form: { gap: 12 },
+  error: { color: "#C62828" },
+  btn: { borderRadius: 14 },
+  btnContent: { paddingVertical: 4 }
+});

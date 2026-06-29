@@ -1,7 +1,10 @@
 import React from "react";
-import { Alert, ScrollView, View } from "react-native";
-import { Chip, Text } from "react-native-paper";
+import { Alert, ScrollView, StyleSheet, View } from "react-native";
+import { Text } from "react-native-paper";
+import { FilterPill } from "../../components/FilterPill";
+import { ScreenHeader } from "../../components/ScreenHeader";
 import { ThemeCard } from "../../components/ThemeCard";
+import { UI, screenPadding } from "../../constants/ui";
 import { useThemes } from "../../hooks/useThemes";
 import { useAppStore } from "../../store";
 import { canAccessPremiumThemes, effectiveIsPremium, isAuthGateSatisfied } from "../../constants/config";
@@ -17,11 +20,11 @@ import { Template } from "../../types";
 type ThemeFilter = "all" | "free" | "newborn" | "summer" | "birthday" | "100day" | "horse";
 
 const FILTER_LABELS: Record<ThemeFilter, string> = {
-  all: "전체 카테고리",
+  all: "전체",
   free: "무료",
   newborn: "신생아",
   summer: "여름",
-  birthday: "돌사진",
+  birthday: "돌",
   "100day": "100일",
   horse: "말띠"
 };
@@ -84,48 +87,83 @@ export function ThemesScreen({ navigation }: any) {
   };
 
   return (
-    <ScrollView contentContainerStyle={{ padding: 16, gap: 10 }}>
-      <Text variant="headlineSmall">테마</Text>
-      <Text>카테고리별로 원하는 테마를 선택하세요.</Text>
-      <Text variant="labelLarge">성별 필터</Text>
-      <View style={{ flexDirection: "row", gap: 8 }}>
-        <Chip selected={!selectedGender} onPress={() => setSelectedGender(undefined)}>
-          성별 전체
-        </Chip>
-        <Chip selected={selectedGender === "girl"} onPress={() => setSelectedGender("girl")}>
-          여아
-        </Chip>
-        <Chip selected={selectedGender === "boy"} onPress={() => setSelectedGender("boy")}>
-          남아
-        </Chip>
+    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+      <ScreenHeader
+        title="테마 갤러리"
+        subtitle="마음에 드는 스타일을 고르고, 사진 한 장으로 완성해 보세요."
+      />
+
+      <Text variant="labelLarge" style={styles.sectionLabel}>
+        성별
+      </Text>
+      <View style={styles.pillRow}>
+        <FilterPill label="전체" selected={!selectedGender} onPress={() => setSelectedGender(undefined)} />
+        <FilterPill label="여아" selected={selectedGender === "girl"} onPress={() => setSelectedGender("girl")} />
+        <FilterPill label="남아" selected={selectedGender === "boy"} onPress={() => setSelectedGender("boy")} />
       </View>
 
-      <Text variant="labelLarge">카테고리 필터</Text>
-      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+      <Text variant="labelLarge" style={styles.sectionLabel}>
+        카테고리
+      </Text>
+      <View style={styles.pillRowWrap}>
         {(Object.keys(FILTER_LABELS) as ThemeFilter[]).map((key) => (
-          <Chip key={key} selected={filter === key} onPress={() => setFilter(key)}>
-            {FILTER_LABELS[key]}
-          </Chip>
+          <FilterPill
+            key={key}
+            label={FILTER_LABELS[key]}
+            selected={filter === key}
+            onPress={() => setFilter(key)}
+          />
         ))}
       </View>
 
-      <Text variant="titleMedium">
-        {FILTER_LABELS[filter]} ({filteredThemes.length})
-      </Text>
+      <View style={styles.countRow}>
+        <Text variant="titleMedium" style={styles.countTitle}>
+          {FILTER_LABELS[filter]}
+        </Text>
+        <Text variant="bodyMedium" style={styles.countMeta}>
+          {filteredThemes.length}개
+        </Text>
+      </View>
 
-      {filteredThemes.map((theme) => {
-        const premiumLocked = theme.isPremium && !canAccessPremium;
-        const monthlyLocked = !theme.isPremium && freeQuotaExhausted;
-        return (
-          <ThemeCard
-            key={theme.slug}
-            template={theme}
-            locked={premiumLocked || monthlyLocked}
-            lockReason={monthlyLocked ? "monthly_free" : "premium"}
-            onSelect={() => onSelect(theme)}
-          />
-        );
-      })}
+      <View style={styles.grid}>
+        {filteredThemes.map((theme) => {
+          const premiumLocked = theme.isPremium && !canAccessPremium;
+          const monthlyLocked = !theme.isPremium && freeQuotaExhausted;
+          return (
+            <ThemeCard
+              key={theme.slug}
+              template={theme}
+              locked={premiumLocked || monthlyLocked}
+              lockReason={monthlyLocked ? "monthly_free" : "premium"}
+              onSelect={() => onSelect(theme)}
+              compact
+            />
+          );
+        })}
+      </View>
     </ScrollView>
   );
 }
+
+const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: UI.bg },
+  content: { padding: screenPadding, paddingBottom: 32, gap: 10 },
+  sectionLabel: { color: UI.inkSoft, marginTop: 6, fontWeight: "700" },
+  pillRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  pillRowWrap: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  countRow: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    justifyContent: "space-between",
+    marginTop: 8,
+    marginBottom: 4
+  },
+  countTitle: { color: UI.ink, fontWeight: "800" },
+  countMeta: { color: UI.inkMuted },
+  grid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 12,
+    justifyContent: "space-between"
+  }
+});

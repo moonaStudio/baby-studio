@@ -78,6 +78,12 @@ function getOAuthRedirectTo(): string {
   if (isExpoGo()) {
     return Linking.createURL("auth/callback");
   }
+  // Native release/dev build: HTTPS callback closes the in-app browser reliably.
+  // Supabase must allow this exact URL in Auth → Redirect URLs.
+  const backend = CONFIG.BACKEND_URL?.replace(/\/$/, "");
+  if (backend) {
+    return `${backend}/auth/callback`;
+  }
   return NATIVE_CUSTOM_SCHEME_REDIRECT;
 }
 

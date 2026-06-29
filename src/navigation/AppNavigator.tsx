@@ -48,7 +48,26 @@ function resetTo(name: "Login" | "MainTabs") {
 
 function MainTabs() {
   return (
-    <Tab.Navigator screenOptions={{ headerShown: false, tabBarAllowFontScaling: false }}>
+    <Tab.Navigator
+      screenOptions={{
+        headerShown: false,
+        tabBarAllowFontScaling: false,
+        tabBarActiveTintColor: "#A24A8C",
+        tabBarInactiveTintColor: "#B89AAF",
+        tabBarStyle: {
+          backgroundColor: "#FFFFFF",
+          borderTopColor: "#EFDCEE",
+          borderTopWidth: 1,
+          height: 62,
+          paddingTop: 6,
+          paddingBottom: 8
+        },
+        tabBarLabelStyle: {
+          fontSize: 11,
+          fontWeight: "700"
+        }
+      }}
+    >
       <Tab.Screen
         name="Home"
         component={HomeScreen}
