@@ -71,19 +71,27 @@ function isExpoGo(): boolean {
   );
 }
 
-function getOAuthRedirectTo(): string {
+/** URL sent to Supabase — must be on Redirect URLs allow list. */
+function getSupabaseOAuthRedirectTo(): string {
   if (Platform.OS === "web") {
     return makeRedirectUri({ path: "auth/callback" });
   }
-  if (isExpoGo()) {
-    return Linking.createURL("auth/callback");
-  }
-  // Native release/dev build: HTTPS callback closes the in-app browser reliably.
-  // Supabase must allow this exact URL in Auth → Redirect URLs.
   const backend = CONFIG.BACKEND_URL?.replace(/\/$/, "");
   if (backend) {
     return `${backend}/auth/callback`;
   }
+  if (__DEV__ || isExpoGo()) {
+    return Linking.createURL("auth/callback");
+  }
+  return NATIVE_CUSTOM_SCHEME_REDIRECT;
+}
+
+/** Prefix that tells the in-app browser when to close and return to the app. */
+function getBrowserOAuthReturnPrefix(): string {
+  if (Platform.OS === "web") {
+    return getSupabaseOAuthRedirectTo();
+  }
+  // Custom scheme — closes after Vercel 302 → babystudio://auth/callback?code=…
   return NATIVE_CUSTOM_SCHEME_REDIRECT;
 }
 
@@ -178,13 +186,10 @@ async function signInWithOAuthInner(provider: OAuthProvider) {
     await resetOauthInAppBrowserState();
   }
 
-  const redirectTo = getOAuthRedirectTo();
-  if (__DEV__) {
-    console.warn(
-      "[OAuth] redirectTo → add this exact URL to Supabase → Auth → Redirect URLs:",
-      redirectTo
-    );
-  }
+  const redirectTo = getSupabaseOAuthRedirectTo();
+  const browserReturnPrefix = getBrowserOAuthReturnPrefix();
+  console.warn("[OAuth] Supabase redirectTo:", redirectTo);
+  console.warn("[OAuth] Browser close prefix:", browserReturnPrefix);
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider,
     options: {
@@ -208,7 +213,7 @@ async function signInWithOAuthInner(provider: OAuthProvider) {
     if (e instanceof Error && e.message.includes("OAuth redirect_to")) throw e;
   }
 
-  const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
+  const result = await WebBrowser.openAuthSessionAsync(data.url, browserReturnPrefix);
   if (result.type === "cancel" || result.type === "dismiss") {
     throw new Error(
       "로그인 창을 먼저 닫으면 완료되지 않아요. 구글까지 끝나면 보통 1~2초 안에 창이 스스로 닫혀요."
@@ -219,23 +224,13 @@ async function signInWithOAuthInner(provider: OAuthProvider) {
   }
 
   const url = result.url;
-  const backendRoot = CONFIG.BACKEND_URL?.replace(/\/$/, "");
-  if (
-    backendRoot &&
-    (url.startsWith("http://") || url.startsWith("https://")) &&
-    url.startsWith(backendRoot) &&
-    !extractPkceCodeFromCallbackUrl(url)
-  ) {
+  const code = extractPkceCodeFromCallbackUrl(url);
+  if (!code) {
     throw new Error(
-      "Supabase가 로그인 후 앱 주소 대신 웹(Site URL)로만 보냈어요. " +
-        "Authentication → URL Configuration → Redirect URLs에 아래 한 줄을 **그대로** 추가하고 Save 하세요.\n\n" +
-        `${redirectTo}\n\n` +
-        "터널(`expo start --tunnel`)이면 주소가 바뀌니 Metro에 찍힌 줄과 같아야 해요. `exp://**` 와일드카드도 함께 넣어 두세요."
+      "로그인 코드를 확인할 수 없어요. Supabase Redirect URLs에 아래가 있는지 확인하세요.\n\n" +
+        `${redirectTo}`
     );
   }
-
-  const code = extractPkceCodeFromCallbackUrl(url);
-  if (!code) throw new Error("로그인 코드를 확인할 수 없어요.");
   const { data: sessionData, error: sessionError } = await supabase.auth.exchangeCodeForSession(code);
   if (sessionError) throw sessionError;
   return sessionData;
