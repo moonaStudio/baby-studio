@@ -12,6 +12,7 @@
     "ios": "expo run:ios",
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
+    "vercel-build": "cd backend && npm install && npm run build",
     "android:bundle": "cd android && ./gradlew bundleRelease",
     "build:android:internal": "eas build --platform android --profile preview --non-interactive"
   },
