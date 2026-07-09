@@ -91,7 +91,14 @@ function getBrowserOAuthReturnPrefix(): string {
   if (Platform.OS === "web") {
     return getSupabaseOAuthRedirectTo();
   }
-  // Custom scheme — closes after Vercel 302 → babystudio://auth/callback?code=…
+  const backend = CONFIG.BACKEND_URL?.replace(/\/$/, "");
+  // Supabase often lands on Site URL (/?code=…) even when redirectTo is /auth/callback.
+  if (backend) {
+    return backend;
+  }
+  if (__DEV__ || isExpoGo()) {
+    return "exp://";
+  }
   return NATIVE_CUSTOM_SCHEME_REDIRECT;
 }
 

@@ -76,10 +76,12 @@ export function LoginScreen({ navigation }: any) {
             setError(undefined);
             try {
               const result = await signInWithOAuth("google");
-              const uid = result.user?.id;
+              const uid = result.user?.id ?? result.session?.user?.id;
               if (uid) {
                 setUserId(uid);
                 goToMainTabs(navigation);
+              } else {
+                setError("로그인은 됐지만 사용자 정보를 가져오지 못했어요. 다시 시도해 주세요.");
               }
             } catch (e: any) {
               setError(e?.message ?? "Google 로그인에 실패했어요.");
