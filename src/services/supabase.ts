@@ -72,22 +72,27 @@ function isExpoGo(): boolean {
   );
 }
 
+/** Deep link the app listens for after Vercel hands off the OAuth code. */
+function getNativeOAuthReturnUrl(): string {
+  if (isExpoGo()) {
+    return Linking.createURL("auth/callback");
+  }
+  return NATIVE_CUSTOM_SCHEME_REDIRECT;
+}
+
 /** URL sent to Supabase — must be on Redirect URLs allow list. */
 function getSupabaseOAuthRedirectTo(): string {
   if (Platform.OS === "web") {
     return makeRedirectUri({ path: "auth/callback" });
   }
-  // Prefer HTTPS backend callback for all native (Expo Go + release).
-  // Vercel returns 200 HTML with ?code=…; openAuthSessionAsync closes on that host.
-  // Avoid babystudio:// server redirects — Expo Go Safari shows "address is invalid".
   const backend = CONFIG.BACKEND_URL?.replace(/\/$/, "");
+  const nativeReturn = getNativeOAuthReturnUrl();
+  // Pass native return so Vercel can deep-link (HTTPS alone won't close iOS auth sheet).
+  // Supabase allow list should include https://baby-studio-omega.vercel.app/** (query ok).
   if (backend) {
-    return `${backend}/auth/callback`;
+    return `${backend}/auth/callback?app_return=${encodeURIComponent(nativeReturn)}`;
   }
-  if (isExpoGo()) {
-    return Linking.createURL("auth/callback");
-  }
-  return NATIVE_CUSTOM_SCHEME_REDIRECT;
+  return nativeReturn;
 }
 
 /** Prefix that tells the in-app browser when to close and return to the app. */
@@ -95,14 +100,8 @@ function getBrowserOAuthReturnPrefix(): string {
   if (Platform.OS === "web") {
     return getSupabaseOAuthRedirectTo();
   }
-  const backend = CONFIG.BACKEND_URL?.replace(/\/$/, "");
-  if (backend) {
-    return backend;
-  }
-  if (isExpoGo()) {
-    return getSupabaseOAuthRedirectTo();
-  }
-  return `${APP_SCHEME}://`;
+  // Match the deep link Vercel opens (exp://… or babystudio://…), not HTTPS.
+  return getNativeOAuthReturnUrl();
 }
 
 /**
