@@ -68,6 +68,7 @@ export function LoginScreen({ navigation }: any) {
         </Button>
         <Button
           mode="outlined"
+          loading={loading}
           disabled={loading}
           style={styles.btn}
           icon="google"

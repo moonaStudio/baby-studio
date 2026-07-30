@@ -6,6 +6,7 @@ import * as WebBrowser from "expo-web-browser";
 import { Platform } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { CONFIG } from "../constants/config";
+import { withTimeout } from "../utils/withTimeout";
 
 const APP_SCHEME = "babystudio";
 
@@ -76,11 +77,14 @@ function getSupabaseOAuthRedirectTo(): string {
   if (Platform.OS === "web") {
     return makeRedirectUri({ path: "auth/callback" });
   }
+  // Prefer HTTPS backend callback for all native (Expo Go + release).
+  // Vercel returns 200 HTML with ?code=…; openAuthSessionAsync closes on that host.
+  // Avoid babystudio:// server redirects — Expo Go Safari shows "address is invalid".
   const backend = CONFIG.BACKEND_URL?.replace(/\/$/, "");
   if (backend) {
     return `${backend}/auth/callback`;
   }
-  if (__DEV__ || isExpoGo()) {
+  if (isExpoGo()) {
     return Linking.createURL("auth/callback");
   }
   return NATIVE_CUSTOM_SCHEME_REDIRECT;
@@ -92,14 +96,13 @@ function getBrowserOAuthReturnPrefix(): string {
     return getSupabaseOAuthRedirectTo();
   }
   const backend = CONFIG.BACKEND_URL?.replace(/\/$/, "");
-  // Supabase often lands on Site URL (/?code=…) even when redirectTo is /auth/callback.
   if (backend) {
     return backend;
   }
-  if (__DEV__ || isExpoGo()) {
-    return "exp://";
+  if (isExpoGo()) {
+    return getSupabaseOAuthRedirectTo();
   }
-  return NATIVE_CUSTOM_SCHEME_REDIRECT;
+  return `${APP_SCHEME}://`;
 }
 
 /**
@@ -146,6 +149,66 @@ function extractPkceCodeFromCallbackUrl(url: string): string | undefined {
     if (c) return c;
   }
   return undefined;
+}
+
+const OAUTH_BROWSER_TIMEOUT_MS = 120_000;
+
+/** openAuthSessionAsync + deep-link fallback (Android) + timeout so UI never spins forever. */
+async function openOAuthBrowser(authUrl: string, returnPrefix: string): Promise<string> {
+  return new Promise<string>((resolve, reject) => {
+    let settled = false;
+    const cleanup = (sub?: { remove: () => void }) => {
+      sub?.remove();
+      clearTimeout(timer);
+    };
+    const finish = (url: string, sub?: { remove: () => void }) => {
+      if (settled) return;
+      settled = true;
+      cleanup(sub);
+      resolve(url);
+    };
+    const fail = (err: Error, sub?: { remove: () => void }) => {
+      if (settled) return;
+      settled = true;
+      cleanup(sub);
+      reject(err);
+    };
+
+    const sub =
+      Platform.OS === "web"
+        ? undefined
+        : Linking.addEventListener("url", ({ url }) => {
+            if (!extractPkceCodeFromCallbackUrl(url)) return;
+            finish(url, sub);
+          });
+
+    const timer = setTimeout(() => {
+      fail(
+        new Error(
+          "로그인 시간이 초과됐어요. 구글 로그인 후 창이 안 닫히면 앱을 재시작하고 다시 시도해 주세요."
+        ),
+        sub
+      );
+    }, OAUTH_BROWSER_TIMEOUT_MS);
+
+    void WebBrowser.openAuthSessionAsync(authUrl, returnPrefix).then((result) => {
+      if (settled) return;
+      if (result.type === "cancel" || result.type === "dismiss") {
+        fail(
+          new Error(
+            "로그인 창을 먼저 닫으면 완료되지 않아요. 구글까지 끝나면 보통 1~2초 안에 창이 스스로 닫혀요."
+          ),
+          sub
+        );
+        return;
+      }
+      if (result.type !== "success" || !result.url) {
+        fail(new Error("로그인이 중단되었어요. 다시 시도해 주세요."), sub);
+        return;
+      }
+      finish(result.url, sub);
+    });
+  });
 }
 
 WebBrowser.maybeCompleteAuthSession();
@@ -220,17 +283,13 @@ async function signInWithOAuthInner(provider: OAuthProvider) {
     if (e instanceof Error && e.message.includes("OAuth redirect_to")) throw e;
   }
 
-  const result = await WebBrowser.openAuthSessionAsync(data.url, browserReturnPrefix);
-  if (result.type === "cancel" || result.type === "dismiss") {
-    throw new Error(
-      "로그인 창을 먼저 닫으면 완료되지 않아요. 구글까지 끝나면 보통 1~2초 안에 창이 스스로 닫혀요."
-    );
-  }
-  if (result.type !== "success" || !result.url) {
-    throw new Error("로그인이 중단되었어요. 다시 시도해 주세요.");
-  }
+  const resultUrl = await withTimeout(
+    openOAuthBrowser(data.url, browserReturnPrefix),
+    OAUTH_BROWSER_TIMEOUT_MS + 5_000,
+    "oauth"
+  );
 
-  const url = result.url;
+  const url = resultUrl;
   const code = extractPkceCodeFromCallbackUrl(url);
   if (!code) {
     throw new Error(
