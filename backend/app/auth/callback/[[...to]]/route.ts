@@ -1,17 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 
 /**
- * OAuth lands here with ?code=… (and optional app_return=exp://… or babystudio://…).
- *
- * iOS ASWebAuthenticationSession does not dismiss on HTTPS callbacks without Associated Domains,
- * so we must deep-link back into the app. Expo Go needs exp://; store builds need babystudio://.
- * The app passes that URL as app_return on redirectTo.
+ * OAuth lands here with ?code=…
+ * Optional path: /auth/callback/to/<base64url(app deep link)>
+ * so Supabase allow-list can use https://…/auth/callback/** without query-string mismatches.
  */
-export async function GET(req: NextRequest) {
+export async function GET(
+  req: NextRequest,
+  ctx: { params: Promise<{ to?: string[] }> }
+) {
   const code = req.nextUrl.searchParams.get("code");
-  const appReturn = req.nextUrl.searchParams.get("app_return");
   const error =
     req.nextUrl.searchParams.get("error_description") ?? req.nextUrl.searchParams.get("error");
+  const parts = (await ctx.params).to ?? [];
+  const encodedReturn = parts[0];
+  const appReturnFromPath = encodedReturn ? decodeAppReturn(encodedReturn) : null;
+  const appReturnFromQuery = req.nextUrl.searchParams.get("app_return");
+  const appReturn = appReturnFromPath ?? appReturnFromQuery;
 
   if (error) {
     const html = `<!DOCTYPE html><html><body style="font-family:system-ui;padding:24px">
@@ -28,7 +33,6 @@ export async function GET(req: NextRequest) {
 
   const deepLink = buildDeepLink(appReturn, code);
 
-  // HTML + JS redirect — more reliable than HTTP 302 to custom schemes on some clients.
   const html = `<!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -57,6 +61,17 @@ function isAllowedAppReturn(url: string): boolean {
   return /^(babystudio|exp|exps):\/\//i.test(url.trim());
 }
 
+function decodeAppReturn(encoded: string): string | null {
+  try {
+    const padded = encoded.replace(/-/g, "+").replace(/_/g, "/");
+    const pad = padded.length % 4 === 0 ? "" : "=".repeat(4 - (padded.length % 4));
+    const decoded = Buffer.from(padded + pad, "base64").toString("utf8");
+    return isAllowedAppReturn(decoded) ? decoded : null;
+  } catch {
+    return null;
+  }
+}
+
 function appendCode(base: string, code: string): string {
   const cleaned = base.trim().replace(/([?&])code=[^&]*/g, "").replace(/[?&]$/, "");
   const join = cleaned.includes("?") ? "&" : "?";
@@ -67,7 +82,6 @@ function buildDeepLink(appReturn: string | null, code: string): string {
   if (appReturn && isAllowedAppReturn(appReturn)) {
     return appendCode(appReturn, code);
   }
-  // Release / Site URL fallback
   return `babystudio://auth/callback?code=${encodeURIComponent(code)}`;
 }
 

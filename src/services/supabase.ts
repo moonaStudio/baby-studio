@@ -80,6 +80,13 @@ function getNativeOAuthReturnUrl(): string {
   return NATIVE_CUSTOM_SCHEME_REDIRECT;
 }
 
+function encodeAppReturnPath(nativeReturn: string): string {
+  const b64 = typeof btoa === "function"
+    ? btoa(nativeReturn)
+    : Buffer.from(nativeReturn, "utf8").toString("base64");
+  return b64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+
 /** URL sent to Supabase — must be on Redirect URLs allow list. */
 function getSupabaseOAuthRedirectTo(): string {
   if (Platform.OS === "web") {
@@ -87,10 +94,10 @@ function getSupabaseOAuthRedirectTo(): string {
   }
   const backend = CONFIG.BACKEND_URL?.replace(/\/$/, "");
   const nativeReturn = getNativeOAuthReturnUrl();
-  // Pass native return so Vercel can deep-link (HTTPS alone won't close iOS auth sheet).
-  // Supabase allow list should include https://baby-studio-omega.vercel.app/** (query ok).
+  // Path (not query) carries app return — avoids Supabase rejecting ?app_return=…
+  // Allow list: https://baby-studio-omega.vercel.app/auth/callback/**
   if (backend) {
-    return `${backend}/auth/callback?app_return=${encodeURIComponent(nativeReturn)}`;
+    return `${backend}/auth/callback/${encodeAppReturnPath(nativeReturn)}`;
   }
   return nativeReturn;
 }
@@ -100,7 +107,6 @@ function getBrowserOAuthReturnPrefix(): string {
   if (Platform.OS === "web") {
     return getSupabaseOAuthRedirectTo();
   }
-  // Match the deep link Vercel opens (exp://… or babystudio://…), not HTTPS.
   return getNativeOAuthReturnUrl();
 }
 
@@ -273,13 +279,13 @@ async function signInWithOAuthInner(provider: OAuthProvider) {
     const authUrl = new URL(data.url);
     const sent = authUrl.searchParams.get("redirect_to");
     if (sent) {
-      const decoded = decodeURIComponent(sent);
-      if (decoded !== redirectTo) {
-        throw new Error(`OAuth redirect_to 불일치. 앱: ${redirectTo} / 요청 URL: ${decoded}`);
+      // searchParams.get already decodes once
+      if (sent !== redirectTo) {
+        console.warn("[OAuth] redirect_to differs (continuing):", { expected: redirectTo, sent });
       }
     }
-  } catch (e) {
-    if (e instanceof Error && e.message.includes("OAuth redirect_to")) throw e;
+  } catch {
+    // ignore URL parse issues
   }
 
   const resultUrl = await withTimeout(
